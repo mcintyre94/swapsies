@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Search } from "lucide-react";
-import { useState } from "react";
+import { Search, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export const Route = createFileRoute("/cost-basis")({
 	component: CostBasisPage,
@@ -16,6 +16,14 @@ interface JupiterToken {
 	isVerified?: boolean;
 }
 
+interface StoredCostBasis {
+	tokenAddress: string;
+	costBasisUSD: number;
+	tokenName: string;
+	tokenSymbol: string;
+	tokenLogo?: string;
+}
+
 type InputMode = "per-token" | "total";
 
 function CostBasisPage() {
@@ -29,6 +37,20 @@ function CostBasisPage() {
 	const [costBasisPerToken, setCostBasisPerToken] = useState("");
 	const [totalBalance, setTotalBalance] = useState("");
 	const [totalCost, setTotalCost] = useState("");
+	const [savedCostBasis, setSavedCostBasis] = useState<StoredCostBasis[]>([]);
+
+	const loadSavedCostBasis = useCallback(() => {
+		const existingData = localStorage.getItem("costBasisData");
+		if (existingData) {
+			const costBasisData = JSON.parse(existingData);
+			const entries = Object.values(costBasisData) as StoredCostBasis[];
+			setSavedCostBasis(entries);
+		}
+	}, []);
+
+	useEffect(() => {
+		loadSavedCostBasis();
+	}, [loadSavedCostBasis]);
 
 	const handleSearch = async (query: string) => {
 		if (!query.trim()) {
@@ -106,17 +128,94 @@ function CostBasisPage() {
 		setCostBasisPerToken("");
 		setTotalBalance("");
 		setTotalCost("");
+		loadSavedCostBasis();
+	};
+
+	const handleDelete = (tokenAddress: string) => {
+		const existingData = localStorage.getItem("costBasisData");
+		if (!existingData) return;
+
+		const costBasisData = JSON.parse(existingData);
+		delete costBasisData[tokenAddress];
+		localStorage.setItem("costBasisData", JSON.stringify(costBasisData));
+		loadSavedCostBasis();
 	};
 
 	const calculatedCostBasis = calculateCostBasisPerToken();
 
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white p-8">
-			<div className="max-w-2xl mx-auto">
-				<h1 className="text-4xl font-bold mb-2">Add Cost Basis</h1>
+			<div className="max-w-4xl mx-auto">
+				<h1 className="text-4xl font-bold mb-2">Cost Basis</h1>
 				<p className="text-slate-400 mb-8">
 					Enter cost basis data from your tax software
 				</p>
+
+				{savedCostBasis.length > 0 && (
+					<div className="bg-slate-800 rounded-lg p-6 mb-8">
+						<h2 className="text-xl font-semibold mb-4">Saved</h2>
+						<div className="overflow-x-auto">
+							<table className="w-full">
+								<thead>
+									<tr className="border-b border-slate-700">
+										<th className="text-left py-3 px-2 text-sm font-medium text-slate-400">
+											Token
+										</th>
+										<th className="text-right py-3 px-2 text-sm font-medium text-slate-400">
+											Cost Basis
+										</th>
+										<th className="text-right py-3 px-2 text-sm font-medium text-slate-400">
+											Actions
+										</th>
+									</tr>
+								</thead>
+								<tbody>
+									{savedCostBasis.map((entry) => (
+										<tr
+											key={entry.tokenAddress}
+											className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors"
+										>
+											<td className="py-3 px-2">
+												<div className="flex items-center gap-3">
+													{entry.tokenLogo && (
+														<img
+															src={entry.tokenLogo}
+															alt={entry.tokenSymbol}
+															className="w-8 h-8 rounded-full"
+														/>
+													)}
+													<div>
+														<div className="font-semibold">
+															{entry.tokenSymbol}
+														</div>
+														<div className="text-sm text-slate-400">
+															{entry.tokenName}
+														</div>
+													</div>
+												</div>
+											</td>
+											<td className="py-3 px-2 text-right font-mono">
+												${entry.costBasisUSD.toFixed(6)}
+											</td>
+											<td className="py-3 px-2 text-right">
+												<button
+													type="button"
+													onClick={() => handleDelete(entry.tokenAddress)}
+													className="text-slate-400 hover:text-red-400 transition-colors p-2"
+													title="Delete"
+												>
+													<Trash2 className="w-4 h-4" />
+												</button>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					</div>
+				)}
+
+				<h2 className="text-2xl font-semibold mb-4">Add New</h2>
 
 				<div className="bg-slate-800 rounded-lg p-6 mb-6">
 					<div className="block text-sm font-medium mb-2">Select Token</div>
