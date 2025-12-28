@@ -7,11 +7,13 @@ Shows potential tax gain/loss when swapping tokens in a Jupiter swap UI, based o
 ## Core Flow
 
 1. **User enters cost basis for tokens they own**
+
    - Search for a token (using Jupiter API)
    - Enter the cost basis (what they paid per token in USD)
    - Save it (where? localStorage for now)
 
 2. **User connects Solana wallet**
+
    - Standard Solana wallet connection
    - Shows tokens in their wallet
 
@@ -27,6 +29,7 @@ Shows potential tax gain/loss when swapping tokens in a Jupiter swap UI, based o
 **Source:** User's tax software (manual entry)
 
 **Input Options:**
+
 1. **Direct:** Cost basis per token (e.g., "$22.50 per SOL")
 2. **Calculated:** Total balance + Total cost basis
    - Example: "1000 SOL total, $22,500 total cost = $22.50 per token"
@@ -35,18 +38,21 @@ Shows potential tax gain/loss when swapping tokens in a Jupiter swap UI, based o
 **Note:** Cost basis is global (not per-wallet) since tax software aggregates across all wallets.
 
 ### Cost Basis Data Structure
+
 ```typescript
 interface TokenCostBasis {
-  tokenAddress: string      // Solana mint address
-  costBasisUSD: number      // Average cost per token in USD
-  tokenName: string         // For display
-  tokenSymbol: string       // For display
-  tokenLogo?: string        // For display
+  tokenAddress: string; // Solana mint address
+  costBasisUSD: number; // Average cost per token in USD
+  tokenName: string; // For display
+  tokenSymbol: string; // For display
+  tokenLogo?: string; // For display
 }
 ```
 
 ### Tax Calculation Display
+
 When swapping Token A → Token B:
+
 - Show: "Selling X amount of TokenA"
 - Show: Cost basis per token, current price per token
 - Show: Total gain/loss in USD
@@ -55,11 +61,13 @@ When swapping Token A → Token B:
 - **No short-term vs long-term** - no purchase date tracking
 
 ### Jupiter Integration
+
 - **Custom swap UI** - built from scratch using Jupiter Swap API
 - Allows better integration of cost basis data into the UX
 - Full control over layout and flow
 
 ### Storage
+
 - localStorage - simple key-value store
 - Global cost basis (not per-wallet)
 - Format: `{ [tokenMintAddress]: TokenCostBasis }`
@@ -67,11 +75,13 @@ When swapping Token A → Token B:
 ## Tech Stack
 
 **Current:**
+
 - TanStack Start (React + Router)
 - Tailwind CSS
 - Vite
 
 **Need to Add:**
+
 - Wallet adapter: `@solana/wallet-adapter-react`
 - Solana web3: `@solana/web3.js`
 - Jupiter integration (API or Terminal widget)
