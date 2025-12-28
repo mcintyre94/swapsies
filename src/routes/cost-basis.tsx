@@ -26,13 +26,27 @@ interface StoredCostBasis {
 
 type InputMode = "per-token" | "total";
 
+function useDebouncedValue<T>(value: T, delay: number): T {
+	const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+	useEffect(() => {
+		const timeoutId = setTimeout(() => {
+			setDebouncedValue(value);
+		}, delay);
+
+		return () => clearTimeout(timeoutId);
+	}, [value, delay]);
+
+	return debouncedValue;
+}
+
 function CostBasisPage() {
 	const [searchQuery, setSearchQuery] = useState("");
+	const debouncedSearchQuery = useDebouncedValue(searchQuery, 1000);
 	const [searchResults, setSearchResults] = useState<JupiterToken[]>([]);
 	const [isSearching, setIsSearching] = useState(false);
 	const [selectedToken, setSelectedToken] = useState<JupiterToken | null>(null);
 	const [inputMode, setInputMode] = useState<InputMode>("per-token");
-	const [lastSearchTime, setLastSearchTime] = useState(0);
 
 	const [costBasisPerToken, setCostBasisPerToken] = useState("");
 	const [totalBalance, setTotalBalance] = useState("");
@@ -52,40 +66,36 @@ function CostBasisPage() {
 		loadSavedCostBasis();
 	}, [loadSavedCostBasis]);
 
-	const handleSearch = async (query: string) => {
-		if (!query.trim()) {
+	useEffect(() => {
+		if (!debouncedSearchQuery.trim()) {
 			setSearchResults([]);
 			return;
 		}
 
-		const now = Date.now();
-		const timeSinceLastSearch = now - lastSearchTime;
-		if (timeSinceLastSearch < 1000) {
-			setTimeout(() => handleSearch(query), 1000 - timeSinceLastSearch);
-			return;
-		}
+		const searchTokens = async () => {
+			setIsSearching(true);
 
-		setIsSearching(true);
-		setLastSearchTime(now);
-
-		try {
-			const response = await fetch(
-				`/api/tokens/search?query=${encodeURIComponent(query)}`,
-			);
-			if (response.ok) {
-				const tokens: JupiterToken[] = await response.json();
-				setSearchResults(tokens);
-			} else {
-				console.error("Search failed:", response.statusText);
+			try {
+				const response = await fetch(
+					`/api/tokens/search?query=${encodeURIComponent(debouncedSearchQuery)}`,
+				);
+				if (response.ok) {
+					const tokens: JupiterToken[] = await response.json();
+					setSearchResults(tokens);
+				} else {
+					console.error("Search failed:", response.statusText);
+					setSearchResults([]);
+				}
+			} catch (error) {
+				console.error("Search error:", error);
 				setSearchResults([]);
+			} finally {
+				setIsSearching(false);
 			}
-		} catch (error) {
-			console.error("Search error:", error);
-			setSearchResults([]);
-		} finally {
-			setIsSearching(false);
-		}
-	};
+		};
+
+		searchTokens();
+	}, [debouncedSearchQuery]);
 
 	const handleSelectToken = (token: JupiterToken) => {
 		setSelectedToken(token);
@@ -250,10 +260,7 @@ function CostBasisPage() {
 								<input
 									type="text"
 									value={searchQuery}
-									onChange={(e) => {
-										setSearchQuery(e.target.value);
-										handleSearch(e.target.value);
-									}}
+									onChange={(e) => setSearchQuery(e.target.value)}
 									placeholder="Search for a token (e.g., SOL, USDC)"
 									className="w-full pl-10 pr-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
 								/>
