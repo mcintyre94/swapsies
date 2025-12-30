@@ -120,6 +120,14 @@ function CostBasisPage() {
 		setSearchQuery("");
 	};
 
+	const handleModeChange = (mode: InputMode) => {
+		setInputMode(mode);
+		// Clear fields when switching modes to prevent stale calculations
+		setCostBasisPerToken("");
+		setTotalBalance("");
+		setTotalCost("");
+	};
+
 	// Clear search results when query is empty
 	const displayedResults =
 		debouncedSearchQuery.trim().length > 0 ? searchResults : [];
@@ -353,7 +361,7 @@ function CostBasisPage() {
 						<div className="flex gap-2 mb-6">
 							<button
 								type="button"
-								onClick={() => setInputMode("per-token")}
+								onClick={() => handleModeChange("per-token")}
 								className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
 									inputMode === "per-token"
 										? "bg-cyan-500 text-white"
@@ -364,7 +372,7 @@ function CostBasisPage() {
 							</button>
 							<button
 								type="button"
-								onClick={() => setInputMode("total")}
+								onClick={() => handleModeChange("total")}
 								className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
 									inputMode === "total"
 										? "bg-cyan-500 text-white"
@@ -389,6 +397,7 @@ function CostBasisPage() {
 									step="any"
 									value={costBasisPerToken}
 									onChange={(e) => setCostBasisPerToken(e.target.value)}
+									onWheel={(e) => e.currentTarget.blur()}
 									placeholder="0.00"
 									className="w-full px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
 								/>
@@ -408,6 +417,7 @@ function CostBasisPage() {
 										step="any"
 										value={totalBalance}
 										onChange={(e) => setTotalBalance(e.target.value)}
+										onWheel={(e) => e.currentTarget.blur()}
 										placeholder="0.00"
 										className="w-full px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
 									/>
@@ -425,6 +435,7 @@ function CostBasisPage() {
 										step="any"
 										value={totalCost}
 										onChange={(e) => setTotalCost(e.target.value)}
+										onWheel={(e) => e.currentTarget.blur()}
 										placeholder="0.00"
 										className="w-full px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
 									/>
