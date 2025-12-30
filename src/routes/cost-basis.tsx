@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Search, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export const Route = createFileRoute("/cost-basis")({
 	component: CostBasisPage,
@@ -26,6 +27,8 @@ interface StoredCostBasis {
 
 type InputMode = "per-token" | "total";
 
+const COST_BASIS_STORAGE_KEY = "costBasisData";
+
 function useDebouncedValue<T>(value: T, delay: number): T {
 	const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
@@ -40,11 +43,40 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 	return debouncedValue;
 }
 
+// Helper functions for localStorage operations
+function getCostBasisData(): Record<string, StoredCostBasis> {
+	try {
+		const data = localStorage.getItem(COST_BASIS_STORAGE_KEY);
+		return data ? JSON.parse(data) : {};
+	} catch (error) {
+		console.error("Failed to read cost basis data:", error);
+		return {};
+	}
+}
+
+function saveCostBasisData(data: Record<string, StoredCostBasis>): boolean {
+	try {
+		localStorage.setItem(COST_BASIS_STORAGE_KEY, JSON.stringify(data));
+		return true;
+	} catch (error) {
+		console.error("Failed to save cost basis data:", error);
+		return false;
+	}
+}
+
+async function searchTokens(query: string): Promise<JupiterToken[]> {
+	const response = await fetch(
+		`/api/tokens/search?query=${encodeURIComponent(query)}`,
+	);
+	if (!response.ok) {
+		throw new Error(`Search failed: ${response.statusText}`);
+	}
+	return response.json();
+}
+
 function CostBasisPage() {
 	const [searchQuery, setSearchQuery] = useState("");
-	const debouncedSearchQuery = useDebouncedValue(searchQuery, 1000);
-	const [searchResults, setSearchResults] = useState<JupiterToken[]>([]);
-	const [isSearching, setIsSearching] = useState(false);
+	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 	const [selectedToken, setSelectedToken] = useState<JupiterToken | null>(null);
 	const [inputMode, setInputMode] = useState<InputMode>("per-token");
 
@@ -53,57 +85,32 @@ function CostBasisPage() {
 	const [totalCost, setTotalCost] = useState("");
 	const [savedCostBasis, setSavedCostBasis] = useState<StoredCostBasis[]>([]);
 
-	const loadSavedCostBasis = useCallback(() => {
-		const existingData = localStorage.getItem("costBasisData");
-		if (existingData) {
-			const costBasisData = JSON.parse(existingData);
-			const entries = Object.values(costBasisData) as StoredCostBasis[];
-			setSavedCostBasis(entries);
-		}
+	// Load saved cost basis data on mount
+	useEffect(() => {
+		const costBasisData = getCostBasisData();
+		const entries = Object.values(costBasisData) as StoredCostBasis[];
+		setSavedCostBasis(entries);
 	}, []);
 
-	useEffect(() => {
-		loadSavedCostBasis();
-	}, [loadSavedCostBasis]);
-
-	useEffect(() => {
-		if (!debouncedSearchQuery.trim()) {
-			setSearchResults([]);
-			return;
-		}
-
-		const searchTokens = async () => {
-			setIsSearching(true);
-
-			try {
-				const response = await fetch(
-					`/api/tokens/search?query=${encodeURIComponent(debouncedSearchQuery)}`,
-				);
-				if (response.ok) {
-					const tokens: JupiterToken[] = await response.json();
-					setSearchResults(tokens);
-				} else {
-					console.error("Search failed:", response.statusText);
-					setSearchResults([]);
-				}
-			} catch (error) {
-				console.error("Search error:", error);
-				setSearchResults([]);
-			} finally {
-				setIsSearching(false);
-			}
-		};
-
-		searchTokens();
-	}, [debouncedSearchQuery]);
+	// Use TanStack Query for token search
+	const {
+		data: searchResults = [],
+		isLoading: isSearching,
+		error: searchError,
+	} = useQuery({
+		queryKey: ["tokens", debouncedSearchQuery],
+		queryFn: () => searchTokens(debouncedSearchQuery),
+		enabled: debouncedSearchQuery.trim().length > 0,
+		staleTime: 5 * 60 * 1000, // 5 minutes
+	});
 
 	const handleSelectToken = (token: JupiterToken) => {
 		setSelectedToken(token);
 		setSearchQuery("");
-		setSearchResults([]);
 	};
 
-	const calculateCostBasisPerToken = (): number | null => {
+	// Memoize the cost basis calculation
+	const calculatedCostBasis = useMemo((): number | null => {
 		if (inputMode === "per-token") {
 			const value = Number.parseFloat(costBasisPerToken);
 			return Number.isNaN(value) ? null : value;
@@ -113,45 +120,50 @@ function CostBasisPage() {
 		if (Number.isNaN(balance) || Number.isNaN(cost) || balance === 0)
 			return null;
 		return cost / balance;
-	};
+	}, [inputMode, costBasisPerToken, totalBalance, totalCost]);
 
 	const handleSave = () => {
-		if (!selectedToken) return;
+		if (!selectedToken || calculatedCostBasis === null) return;
 
-		const costBasis = calculateCostBasisPerToken();
-		if (costBasis === null) return;
-
-		const existingData = localStorage.getItem("costBasisData");
-		const costBasisData = existingData ? JSON.parse(existingData) : {};
+		const costBasisData = getCostBasisData();
 
 		costBasisData[selectedToken.address] = {
 			tokenAddress: selectedToken.address,
-			costBasisUSD: costBasis,
+			costBasisUSD: calculatedCostBasis,
 			tokenName: selectedToken.name,
 			tokenSymbol: selectedToken.symbol,
 			tokenLogo: selectedToken.logo,
 		};
 
-		localStorage.setItem("costBasisData", JSON.stringify(costBasisData));
+		const success = saveCostBasisData(costBasisData);
 
-		setSelectedToken(null);
-		setCostBasisPerToken("");
-		setTotalBalance("");
-		setTotalCost("");
-		loadSavedCostBasis();
+		if (success) {
+			// Reset form
+			setSelectedToken(null);
+			setCostBasisPerToken("");
+			setTotalBalance("");
+			setTotalCost("");
+
+			// Reload saved data
+			const updatedData = getCostBasisData();
+			const entries = Object.values(updatedData) as StoredCostBasis[];
+			setSavedCostBasis(entries);
+		}
 	};
 
 	const handleDelete = (tokenAddress: string) => {
-		const existingData = localStorage.getItem("costBasisData");
-		if (!existingData) return;
-
-		const costBasisData = JSON.parse(existingData);
+		const costBasisData = getCostBasisData();
 		delete costBasisData[tokenAddress];
-		localStorage.setItem("costBasisData", JSON.stringify(costBasisData));
-		loadSavedCostBasis();
-	};
 
-	const calculatedCostBasis = calculateCostBasisPerToken();
+		const success = saveCostBasisData(costBasisData);
+
+		if (success) {
+			// Reload saved data
+			const updatedData = getCostBasisData();
+			const entries = Object.values(updatedData) as StoredCostBasis[];
+			setSavedCostBasis(entries);
+		}
+	};
 
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white p-8">
