@@ -188,10 +188,81 @@ function CostBasisPage() {
 		}
 	};
 
+	const handleExport = () => {
+		const costBasisData = getCostBasisData();
+		const dataStr = JSON.stringify(costBasisData, null, 2);
+		const blob = new Blob([dataStr], { type: "application/json" });
+		const url = URL.createObjectURL(blob);
+
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = `cost-basis-${new Date().toISOString().split("T")[0]}.json`;
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		URL.revokeObjectURL(url);
+	};
+
+	const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		if (!file) return;
+
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			try {
+				const content = e.target?.result as string;
+				const importedData = JSON.parse(content);
+
+				// Validate the data structure
+				if (typeof importedData !== "object" || importedData === null) {
+					alert("Invalid file format");
+					return;
+				}
+
+				// Save the imported data
+				const success = saveCostBasisData(importedData);
+				if (success) {
+					// Reload saved data
+					const updatedData = getCostBasisData();
+					const entries = Object.values(updatedData) as StoredCostBasis[];
+					setSavedCostBasis(entries);
+				}
+			} catch (error) {
+				console.error("Failed to import data:", error);
+				alert("Failed to import file. Please check the file format.");
+			}
+		};
+		reader.readAsText(file);
+
+		// Reset the input so the same file can be imported again
+		event.target.value = "";
+	};
+
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white p-8">
 			<div className="max-w-4xl mx-auto">
-				<h1 className="text-4xl font-bold mb-2">Cost Basis</h1>
+				<div className="flex items-center justify-between mb-2">
+					<h1 className="text-4xl font-bold">Cost Basis</h1>
+					<div className="flex gap-2">
+						<button
+							type="button"
+							onClick={handleExport}
+							disabled={savedCostBasis.length === 0}
+							className="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors"
+						>
+							Export
+						</button>
+						<label className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors cursor-pointer">
+							Import
+							<input
+								type="file"
+								accept=".json"
+								onChange={handleImport}
+								className="hidden"
+							/>
+						</label>
+					</div>
+				</div>
 				<p className="text-slate-400 mb-8">
 					Enter cost basis data from your tax software
 				</p>
