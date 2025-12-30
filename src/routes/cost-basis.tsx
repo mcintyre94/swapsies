@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { Search, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 
 export const Route = createFileRoute("/cost-basis")({
 	component: CostBasisPage,
@@ -46,7 +46,9 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 // Helper functions for localStorage operations
 function getCostBasisData(): Record<string, StoredCostBasis> {
 	try {
+		console.log("Reading cost basis data from localStorage");
 		const data = localStorage.getItem(COST_BASIS_STORAGE_KEY);
+		console.log("Data read from localStorage:", data);
 		return data ? JSON.parse(data) : {};
 	} catch (error) {
 		console.error("Failed to read cost basis data:", error);
@@ -85,29 +87,42 @@ function CostBasisPage() {
 	const [totalCost, setTotalCost] = useState("");
 	const [savedCostBasis, setSavedCostBasis] = useState<StoredCostBasis[]>([]);
 
-	// Load saved cost basis data on mount
-	useEffect(() => {
+	// Load saved cost basis data on mount (runs before paint)
+	useLayoutEffect(() => {
 		const costBasisData = getCostBasisData();
 		const entries = Object.values(costBasisData) as StoredCostBasis[];
 		setSavedCostBasis(entries);
 	}, []);
 
 	// Use TanStack Query for token search
-	const {
-		data: searchResults = [],
-		isLoading: isSearching,
-		error: searchError,
-	} = useQuery({
+	const { data: searchResults = [], isFetching: isSearching } = useQuery({
 		queryKey: ["tokens", debouncedSearchQuery],
 		queryFn: () => searchTokens(debouncedSearchQuery),
 		enabled: debouncedSearchQuery.trim().length > 0,
 		staleTime: 5 * 60 * 1000, // 5 minutes
+		placeholderData: (previousData, previousQuery) => {
+			// Only keep previous data if the new query starts with the old query
+			// (i.e., user is refining their search, not starting fresh)
+			if (
+				previousQuery &&
+				debouncedSearchQuery
+					.toLowerCase()
+					.startsWith(previousQuery.queryKey[1].toLowerCase())
+			) {
+				return previousData;
+			}
+			return undefined;
+		},
 	});
 
 	const handleSelectToken = (token: JupiterToken) => {
 		setSelectedToken(token);
 		setSearchQuery("");
 	};
+
+	// Clear search results when query is empty
+	const displayedResults =
+		debouncedSearchQuery.trim().length > 0 ? searchResults : [];
 
 	// Memoize the cost basis calculation
 	const calculatedCostBasis = useMemo((): number | null => {
@@ -276,45 +291,55 @@ function CostBasisPage() {
 									placeholder="Search for a token (e.g., SOL, USDC)"
 									className="w-full pl-10 pr-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
 								/>
+								{isSearching && (
+									<div className="absolute right-3 top-1/2 -translate-y-1/2">
+										<div className="w-5 h-5 border-2 border-slate-400 border-t-cyan-400 rounded-full animate-spin" />
+									</div>
+								)}
 							</div>
 
-							{searchResults.length > 0 && (
-								<div className="absolute z-10 w-full mt-2 bg-slate-700 rounded-lg shadow-lg max-h-80 overflow-y-auto">
-									{searchResults.map((token) => (
-										<button
-											key={token.address}
-											type="button"
-											onClick={() => handleSelectToken(token)}
-											className="w-full flex items-center gap-3 p-3 hover:bg-slate-600 transition-colors text-left"
-										>
-											{token.logo && (
-												<img
-													src={token.logo}
-													alt={token.symbol}
-													className="w-8 h-8 rounded-full"
-												/>
-											)}
-											<div className="flex-1 min-w-0">
-												<div className="flex items-center gap-2">
-													<span className="font-semibold">{token.symbol}</span>
-													{token.isVerified && (
-														<span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded">
-															Verified
-														</span>
+							{(displayedResults.length > 0 || isSearching) &&
+								debouncedSearchQuery.trim() && (
+									<div className="absolute z-10 w-full mt-2 bg-slate-700 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+										{displayedResults.length > 0 ? (
+											displayedResults.map((token) => (
+												<button
+													key={token.address}
+													type="button"
+													onClick={() => handleSelectToken(token)}
+													className="w-full flex items-center gap-3 p-3 hover:bg-slate-600 transition-colors text-left"
+												>
+													{token.logo && (
+														<img
+															src={token.logo}
+															alt={token.symbol}
+															className="w-8 h-8 rounded-full"
+														/>
 													)}
-												</div>
-												<div className="text-sm text-slate-400 truncate">
-													{token.name}
-												</div>
+													<div className="flex-1 min-w-0">
+														<div className="flex items-center gap-2">
+															<span className="font-semibold">
+																{token.symbol}
+															</span>
+															{token.isVerified && (
+																<span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded">
+																	Verified
+																</span>
+															)}
+														</div>
+														<div className="text-sm text-slate-400 truncate">
+															{token.name}
+														</div>
+													</div>
+												</button>
+											))
+										) : isSearching ? (
+											<div className="p-4 text-center text-slate-400">
+												Searching...
 											</div>
-										</button>
-									))}
-								</div>
-							)}
-
-							{isSearching && (
-								<div className="text-sm text-slate-400 mt-2">Searching...</div>
-							)}
+										) : null}
+									</div>
+								)}
 						</div>
 					)}
 				</div>
