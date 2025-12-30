@@ -15,28 +15,27 @@ export const Route = createFileRoute('/api/tokens/search')({
     handlers: {
       GET: async ({ request }) => {
         const url = new URL(request.url)
-        const query = url.searchParams.get('query')
-
-        if (!query || query.trim() === '') {
-          return new Response(
-            JSON.stringify({ error: 'Query parameter is required' }), 
-            { status: 400, headers: { 'Content-Type': 'application/json' } }
-          )
-        }
+        const query = url.searchParams.get('query') || ''
+        const limit = url.searchParams.get('limit')
 
         const apiKey = process.env.JUPITER_API_KEY
 
         if (!apiKey) {
           console.error('JUPITER_API_KEY environment variable is not set')
           return new Response(
-            JSON.stringify({ error: 'API configuration error' }), 
+            JSON.stringify({ error: 'API configuration error' }),
             { status: 500, headers: { 'Content-Type': 'application/json' } }
           )
         }
 
         try {
+          const params = new URLSearchParams({ query })
+          if (limit) {
+            params.append('limit', limit)
+          }
+
           const response = await fetch(
-            `https://api.jup.ag/ultra/v1/search?query=${encodeURIComponent(query)}`,
+            `https://api.jup.ag/ultra/v1/search?${params.toString()}`,
             {
               headers: {
                 'x-api-key': apiKey,

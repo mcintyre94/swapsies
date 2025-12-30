@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SwapRouteImport } from './routes/swap'
 import { Route as CostBasisRouteImport } from './routes/cost-basis'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
@@ -21,6 +22,11 @@ import { Route as DemoStartSsrSpaModeRouteImport } from './routes/demo/start.ssr
 import { Route as DemoStartSsrFullSsrRouteImport } from './routes/demo/start.ssr.full-ssr'
 import { Route as DemoStartSsrDataOnlyRouteImport } from './routes/demo/start.ssr.data-only'
 
+const SwapRoute = SwapRouteImport.update({
+  id: '/swap',
+  path: '/swap',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CostBasisRoute = CostBasisRouteImport.update({
   id: '/cost-basis',
   path: '/cost-basis',
@@ -80,6 +86,7 @@ const DemoStartSsrDataOnlyRoute = DemoStartSsrDataOnlyRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cost-basis': typeof CostBasisRoute
+  '/swap': typeof SwapRoute
   '/api/jupiter/order': typeof ApiJupiterOrderRoute
   '/api/tokens/search': typeof ApiTokensSearchRoute
   '/demo/api/names': typeof DemoApiNamesRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cost-basis': typeof CostBasisRoute
+  '/swap': typeof SwapRoute
   '/api/jupiter/order': typeof ApiJupiterOrderRoute
   '/api/tokens/search': typeof ApiTokensSearchRoute
   '/demo/api/names': typeof DemoApiNamesRoute
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/cost-basis': typeof CostBasisRoute
+  '/swap': typeof SwapRoute
   '/api/jupiter/order': typeof ApiJupiterOrderRoute
   '/api/tokens/search': typeof ApiTokensSearchRoute
   '/demo/api/names': typeof DemoApiNamesRoute
@@ -122,6 +131,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/cost-basis'
+    | '/swap'
     | '/api/jupiter/order'
     | '/api/tokens/search'
     | '/demo/api/names'
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/cost-basis'
+    | '/swap'
     | '/api/jupiter/order'
     | '/api/tokens/search'
     | '/demo/api/names'
@@ -148,6 +159,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/cost-basis'
+    | '/swap'
     | '/api/jupiter/order'
     | '/api/tokens/search'
     | '/demo/api/names'
@@ -162,6 +174,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CostBasisRoute: typeof CostBasisRoute
+  SwapRoute: typeof SwapRoute
   ApiJupiterOrderRoute: typeof ApiJupiterOrderRoute
   ApiTokensSearchRoute: typeof ApiTokensSearchRoute
   DemoApiNamesRoute: typeof DemoApiNamesRoute
@@ -175,6 +188,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/swap': {
+      id: '/swap'
+      path: '/swap'
+      fullPath: '/swap'
+      preLoaderRoute: typeof SwapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cost-basis': {
       id: '/cost-basis'
       path: '/cost-basis'
@@ -258,6 +278,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CostBasisRoute: CostBasisRoute,
+  SwapRoute: SwapRoute,
   ApiJupiterOrderRoute: ApiJupiterOrderRoute,
   ApiTokensSearchRoute: ApiTokensSearchRoute,
   DemoApiNamesRoute: DemoApiNamesRoute,
