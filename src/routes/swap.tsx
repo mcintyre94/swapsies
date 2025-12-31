@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDownUp, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { getOrder, searchTokens } from "../lib/server-functions";
+import type { JupiterOrderResponse, JupiterToken } from "../types/jupiter";
 
 export const Route = createFileRoute("/swap")({
 	component: SwapPage,
@@ -103,7 +104,7 @@ function SwapPage() {
 		data: quote,
 		isLoading: isLoadingQuote,
 		error: quoteError,
-	} = useQuery({
+	} = useQuery<JupiterOrderResponse>({
 		queryKey: [
 			"order",
 			inputToken?.address,

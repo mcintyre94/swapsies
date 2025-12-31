@@ -21,10 +21,11 @@ Swapsies is a Solana token swap application built with TanStack Start. It allows
 ## Code Quality Standards
 
 - **Always check TypeScript errors** after editing files using `mcp__ide__getDiagnostics`
+- **Always run `pnpm typecheck`** to verify TypeScript has no errors
 - **Fix all TypeScript and Biome diagnostics** before considering a task complete
 - **Run `pnpm biome check --write .` after making changes** to auto-fix formatting and linting issues
 - After auto-fixing, manually fix any remaining errors that can't be auto-fixed
-- The codebase should maintain **zero errors** - use `pnpm biome check .` to verify
+- The codebase should maintain **zero errors** - use `pnpm biome check .` and `pnpm typecheck` to verify
 - Prefer type safety over `any` when possible (use `unknown` instead)
 - All buttons must have explicit `type` attribute (`type="button"` for non-submit buttons)
 - Never use array indices as React keys - use stable identifiers instead
@@ -129,9 +130,12 @@ src/
 
 1. Make code changes
 2. Check diagnostics with `mcp__ide__getDiagnostics`
-3. Fix any TypeScript or Biome errors
-4. Test in browser (dev server runs on port 3000)
-5. Commit when feature is complete
+3. Run `pnpm typecheck` to verify TypeScript errors
+4. Run `pnpm biome check --write .` to auto-fix formatting/linting
+5. Fix any remaining TypeScript or Biome errors manually
+6. Verify zero errors with `pnpm typecheck` and `pnpm biome check .`
+7. Test in browser (dev server runs on port 3000)
+8. Commit when feature is complete
 
 ## Don't Do
 

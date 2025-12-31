@@ -17,7 +17,8 @@ export interface JupiterOrderResponse {
 	slippageBps: number;
 	priceImpactPct: string;
 	routePlan: Array<{
-		swapInfo: { [key: string]: unknown };
+		// biome-ignore lint/suspicious/noExplicitAny: Jupiter API returns dynamic swap info
+		swapInfo: Record<string, any>;
 		percent: number;
 		bps: number;
 	}>;
