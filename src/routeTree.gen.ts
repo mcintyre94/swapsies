@@ -15,7 +15,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
 import { Route as DemoStartApiRequestRouteImport } from './routes/demo/start.api-request'
 import { Route as DemoApiNamesRouteImport } from './routes/demo/api.names'
-import { Route as ApiTokensSearchRouteImport } from './routes/api.tokens.search'
 import { Route as ApiJupiterOrderRouteImport } from './routes/api.jupiter.order'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
 import { Route as DemoStartSsrSpaModeRouteImport } from './routes/demo/start.ssr.spa-mode'
@@ -52,11 +51,6 @@ const DemoApiNamesRoute = DemoApiNamesRouteImport.update({
   path: '/demo/api/names',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiTokensSearchRoute = ApiTokensSearchRouteImport.update({
-  id: '/api/tokens/search',
-  path: '/api/tokens/search',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiJupiterOrderRoute = ApiJupiterOrderRouteImport.update({
   id: '/api/jupiter/order',
   path: '/api/jupiter/order',
@@ -88,7 +82,6 @@ export interface FileRoutesByFullPath {
   '/cost-basis': typeof CostBasisRoute
   '/swap': typeof SwapRoute
   '/api/jupiter/order': typeof ApiJupiterOrderRoute
-  '/api/tokens/search': typeof ApiTokensSearchRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
@@ -102,7 +95,6 @@ export interface FileRoutesByTo {
   '/cost-basis': typeof CostBasisRoute
   '/swap': typeof SwapRoute
   '/api/jupiter/order': typeof ApiJupiterOrderRoute
-  '/api/tokens/search': typeof ApiTokensSearchRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
@@ -117,7 +109,6 @@ export interface FileRoutesById {
   '/cost-basis': typeof CostBasisRoute
   '/swap': typeof SwapRoute
   '/api/jupiter/order': typeof ApiJupiterOrderRoute
-  '/api/tokens/search': typeof ApiTokensSearchRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/start/api-request': typeof DemoStartApiRequestRoute
   '/demo/start/server-funcs': typeof DemoStartServerFuncsRoute
@@ -133,7 +124,6 @@ export interface FileRouteTypes {
     | '/cost-basis'
     | '/swap'
     | '/api/jupiter/order'
-    | '/api/tokens/search'
     | '/demo/api/names'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
@@ -147,7 +137,6 @@ export interface FileRouteTypes {
     | '/cost-basis'
     | '/swap'
     | '/api/jupiter/order'
-    | '/api/tokens/search'
     | '/demo/api/names'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
@@ -161,7 +150,6 @@ export interface FileRouteTypes {
     | '/cost-basis'
     | '/swap'
     | '/api/jupiter/order'
-    | '/api/tokens/search'
     | '/demo/api/names'
     | '/demo/start/api-request'
     | '/demo/start/server-funcs'
@@ -176,7 +164,6 @@ export interface RootRouteChildren {
   CostBasisRoute: typeof CostBasisRoute
   SwapRoute: typeof SwapRoute
   ApiJupiterOrderRoute: typeof ApiJupiterOrderRoute
-  ApiTokensSearchRoute: typeof ApiTokensSearchRoute
   DemoApiNamesRoute: typeof DemoApiNamesRoute
   DemoStartApiRequestRoute: typeof DemoStartApiRequestRoute
   DemoStartServerFuncsRoute: typeof DemoStartServerFuncsRoute
@@ -230,13 +217,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoApiNamesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/tokens/search': {
-      id: '/api/tokens/search'
-      path: '/api/tokens/search'
-      fullPath: '/api/tokens/search'
-      preLoaderRoute: typeof ApiTokensSearchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/jupiter/order': {
       id: '/api/jupiter/order'
       path: '/api/jupiter/order'
@@ -280,7 +260,6 @@ const rootRouteChildren: RootRouteChildren = {
   CostBasisRoute: CostBasisRoute,
   SwapRoute: SwapRoute,
   ApiJupiterOrderRoute: ApiJupiterOrderRoute,
-  ApiTokensSearchRoute: ApiTokensSearchRoute,
   DemoApiNamesRoute: DemoApiNamesRoute,
   DemoStartApiRequestRoute: DemoStartApiRequestRoute,
   DemoStartServerFuncsRoute: DemoStartServerFuncsRoute,

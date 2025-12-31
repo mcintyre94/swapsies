@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Search, Trash2 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import type { JupiterToken } from "../types/jupiter";
+import { searchTokens } from "../lib/server-functions";
 
 export const Route = createFileRoute("/cost-basis")({
 	component: CostBasisPage,
@@ -57,16 +58,6 @@ function saveCostBasisData(data: Record<string, StoredCostBasis>): boolean {
 	}
 }
 
-async function searchTokens(query: string): Promise<JupiterToken[]> {
-	const response = await fetch(
-		`/api/tokens/search?query=${encodeURIComponent(query)}`,
-	);
-	if (!response.ok) {
-		throw new Error(`Search failed: ${response.statusText}`);
-	}
-	return response.json();
-}
-
 function CostBasisPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
@@ -88,7 +79,7 @@ function CostBasisPage() {
 	// Use TanStack Query for token search
 	const { data: searchResults = [], isFetching: isSearching } = useQuery({
 		queryKey: ["tokens", debouncedSearchQuery],
-		queryFn: () => searchTokens(debouncedSearchQuery),
+		queryFn: () => searchTokens({ data: { query: debouncedSearchQuery } }),
 		enabled: debouncedSearchQuery.trim().length > 0,
 		staleTime: 5 * 60 * 1000, // 5 minutes
 		placeholderData: (previousData, previousQuery) => {

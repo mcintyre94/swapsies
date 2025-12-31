@@ -2,10 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDownUp, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type {
-	JupiterOrderResponse,
-	JupiterToken,
-} from "../types/jupiter";
+import type { JupiterOrderResponse } from "../types/jupiter";
+import { searchTokens } from "../lib/server-functions";
 
 export const Route = createFileRoute("/swap")({
 	component: SwapPage,
@@ -23,22 +21,6 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 	}, [value, delay]);
 
 	return debouncedValue;
-}
-
-async function searchTokens(
-	query: string,
-	limit?: number,
-): Promise<JupiterToken[]> {
-	const params = new URLSearchParams({ query });
-	if (limit) {
-		params.append("limit", limit.toString());
-	}
-
-	const response = await fetch(`/api/tokens/search?${params.toString()}`);
-	if (!response.ok) {
-		throw new Error(`Search failed: ${response.statusText}`);
-	}
-	return response.json();
 }
 
 async function getOrder(
@@ -71,14 +53,19 @@ function SwapPage() {
 
 	// Load default tokens (top 2 from Jupiter)
 	const { data: defaultTokens } = useQuery({
-		queryKey: ["tokens", ""],
-		queryFn: () => searchTokens("", 2),
+		queryKey: ["tokens", "", 2],
+		queryFn: () => searchTokens({ data: { query: "", limit: 2 } }),
 		staleTime: Number.POSITIVE_INFINITY, // Cache forever
 	});
 
 	// Set default tokens on mount
 	useEffect(() => {
-		if (defaultTokens && defaultTokens.length >= 2 && !inputToken && !outputToken) {
+		if (
+			defaultTokens &&
+			defaultTokens.length >= 2 &&
+			!inputToken &&
+			!outputToken
+		) {
 			setInputToken(defaultTokens[0]);
 			setOutputToken(defaultTokens[1]);
 		}
@@ -87,7 +74,7 @@ function SwapPage() {
 	// Token search query
 	const { data: searchResults = [], isFetching: isSearching } = useQuery({
 		queryKey: ["tokens", debouncedSearchQuery],
-		queryFn: () => searchTokens(debouncedSearchQuery),
+		queryFn: () => searchTokens({ data: { query: debouncedSearchQuery } }),
 		enabled: debouncedSearchQuery.trim().length > 0,
 		staleTime: 5 * 60 * 1000,
 		placeholderData: (previousData, previousQuery) => {
