@@ -110,14 +110,19 @@ function SwapPage() {
 			outputToken?.address,
 			nativeAmount,
 		],
-		queryFn: () =>
-			getOrder({
+		queryFn: () => {
+			// These are guaranteed to exist because of the enabled check
+			if (!inputToken || !outputToken || !nativeAmount) {
+				throw new Error("Missing required parameters");
+			}
+			return getOrder({
 				data: {
-					inputMint: inputToken!.address,
-					outputMint: outputToken!.address,
-					amount: nativeAmount!,
+					inputMint: inputToken.address,
+					outputMint: outputToken.address,
+					amount: nativeAmount,
 				},
-			}),
+			});
+		},
 		enabled: !!(inputToken && outputToken && nativeAmount),
 		staleTime: 30 * 1000, // 30 seconds
 	});
@@ -138,7 +143,7 @@ function SwapPage() {
 				<div className="bg-slate-800 rounded-lg p-6">
 					{/* Input Token */}
 					<div className="mb-4">
-						<label className="block text-sm font-medium mb-2">You Pay</label>
+						<div className="block text-sm font-medium mb-2">You Pay</div>
 						<div className="flex gap-2">
 							<button
 								type="button"
@@ -186,7 +191,7 @@ function SwapPage() {
 
 					{/* Output Token */}
 					<div className="mb-4">
-						<label className="block text-sm font-medium mb-2">You Receive</label>
+						<div className="block text-sm font-medium mb-2">You Receive</div>
 						<div className="flex gap-2">
 							<button
 								type="button"
@@ -301,7 +306,6 @@ function SwapPage() {
 									onChange={(e) => setSearchQuery(e.target.value)}
 									placeholder="Search for a token"
 									className="w-full pl-10 pr-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-									autoFocus
 								/>
 								{isSearching && (
 									<div className="absolute right-3 top-1/2 -translate-y-1/2">

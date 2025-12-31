@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Search, Trash2 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import type { JupiterToken } from "../types/jupiter";
 import { searchTokens } from "../lib/server-functions";
+import type { JupiterToken } from "../types/jupiter";
 
 export const Route = createFileRoute("/cost-basis")({
 	component: CostBasisPage,
