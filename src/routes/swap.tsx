@@ -2,8 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDownUp, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { JupiterOrderResponse } from "../types/jupiter";
-import { searchTokens } from "../lib/server-functions";
+import { getOrder, searchTokens } from "../lib/server-functions";
 
 export const Route = createFileRoute("/swap")({
 	component: SwapPage,
@@ -21,24 +20,6 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 	}, [value, delay]);
 
 	return debouncedValue;
-}
-
-async function getOrder(
-	inputMint: string,
-	outputMint: string,
-	amount: string,
-): Promise<JupiterOrderResponse> {
-	const params = new URLSearchParams({
-		inputMint,
-		outputMint,
-		amount,
-	});
-
-	const response = await fetch(`/api/jupiter/order?${params.toString()}`);
-	if (!response.ok) {
-		throw new Error(`Order failed: ${response.statusText}`);
-	}
-	return response.json();
 }
 
 type TokenSelectMode = "input" | "output" | null;
@@ -123,9 +104,20 @@ function SwapPage() {
 		isLoading: isLoadingQuote,
 		error: quoteError,
 	} = useQuery({
-		queryKey: ["order", inputToken?.address, outputToken?.address, nativeAmount],
+		queryKey: [
+			"order",
+			inputToken?.address,
+			outputToken?.address,
+			nativeAmount,
+		],
 		queryFn: () =>
-			getOrder(inputToken!.address, outputToken!.address, nativeAmount!),
+			getOrder({
+				data: {
+					inputMint: inputToken!.address,
+					outputMint: outputToken!.address,
+					amount: nativeAmount!,
+				},
+			}),
 		enabled: !!(inputToken && outputToken && nativeAmount),
 		staleTime: 30 * 1000, // 30 seconds
 	});

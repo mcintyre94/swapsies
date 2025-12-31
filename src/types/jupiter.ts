@@ -17,7 +17,7 @@ export interface JupiterOrderResponse {
 	slippageBps: number;
 	priceImpactPct: string;
 	routePlan: Array<{
-		swapInfo: Record<string, unknown>;
+		swapInfo: { [key: string]: any };
 		percent: number;
 		bps: number;
 	}>;

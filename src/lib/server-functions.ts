@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { JupiterToken } from "../types/jupiter";
+import type { JupiterOrderResponse, JupiterToken } from "../types/jupiter";
 
 interface JupiterTokenResponse {
 	id: string;
@@ -64,5 +64,61 @@ export const searchTokens = createServerFn({ method: "GET" })
 		} catch (error) {
 			console.error("Error fetching tokens:", error);
 			throw new Error("Failed to fetch tokens");
+		}
+	});
+
+interface GetOrderInput {
+	inputMint: string;
+	outputMint: string;
+	amount: string;
+	taker?: string;
+}
+
+export const getOrder = createServerFn({ method: "GET" })
+	.inputValidator((input: GetOrderInput) => input)
+	.handler(async ({ data }): Promise<JupiterOrderResponse> => {
+		const apiKey = process.env.JUPITER_API_KEY;
+
+		if (!apiKey) {
+			console.error("JUPITER_API_KEY environment variable is not set");
+			throw new Error("API configuration error");
+		}
+
+		const params = new URLSearchParams({
+			inputMint: data.inputMint,
+			outputMint: data.outputMint,
+			amount: data.amount,
+		});
+
+		if (data.taker) {
+			params.append("taker", data.taker);
+		}
+
+		try {
+			const response = await fetch(
+				`https://api.jup.ag/ultra/v1/order?${params.toString()}`,
+				{
+					headers: {
+						"x-api-key": apiKey,
+					},
+				},
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				console.error(
+					`Jupiter API error: ${response.status} ${response.statusText}`,
+					errorData,
+				);
+				throw new Error(
+					errorData.error || "Failed to get order from Jupiter API",
+				);
+			}
+
+			const orderData: JupiterOrderResponse = await response.json();
+			return orderData;
+		} catch (error) {
+			console.error("Error fetching Jupiter order:", error);
+			throw error;
 		}
 	});
