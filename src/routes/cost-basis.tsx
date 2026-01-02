@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Search, Trash2 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { formatUSD } from "../lib/format";
 import { searchTokens } from "../lib/server-functions";
 import type { JupiterToken } from "../types/jupiter";
 
@@ -293,7 +294,7 @@ function CostBasisPage() {
 												</div>
 											</td>
 											<td className="py-3 px-2 text-right font-mono">
-												${entry.costBasisUSD.toFixed(6)}
+												{formatUSD(entry.costBasisUSD, 6)}
 											</td>
 											<td className="py-3 px-2 text-right">
 												<button
@@ -502,7 +503,7 @@ function CostBasisPage() {
 									Cost Basis Per Token
 								</div>
 								<div className="text-2xl font-bold text-cyan-400">
-									${calculatedCostBasis.toFixed(6)}
+									{formatUSD(calculatedCostBasis, 6)}
 								</div>
 							</div>
 						)}

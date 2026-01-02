@@ -4,6 +4,7 @@ import { useWalletUiAccount, WalletUiDropdown } from "@wallet-ui/react";
 import { ArrowDownUp, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import SwapButton from "../components/SwapButton";
+import { formatNumber, formatTokenAmount, formatUSD } from "../lib/format";
 import { getOrder, searchTokens } from "../lib/server-functions";
 import type { JupiterOrderResponse, JupiterToken } from "../types/jupiter";
 
@@ -246,12 +247,12 @@ function SwapPage() {
 									<span className="text-slate-400">Rate</span>
 									<span>
 										1 {inputToken?.symbol} ≈{" "}
-										{(
+										{formatTokenAmount(
 											(Number.parseFloat(quote.outAmount) /
 												Number.parseFloat(quote.inAmount)) *
-											(10 ** (inputToken?.decimals || 0) /
-												10 ** (outputToken?.decimals || 0))
-										).toFixed(6)}{" "}
+												(10 ** (inputToken?.decimals || 0) /
+													10 ** (outputToken?.decimals || 0)),
+										)}{" "}
 										{outputToken?.symbol}
 									</span>
 								</div>
@@ -264,16 +265,16 @@ function SwapPage() {
 												: "text-green-400"
 										}
 									>
-										{quote.priceImpact.toFixed(2)}%
+										{formatNumber(quote.priceImpact, 2)}%
 									</span>
 								</div>
 								<div className="flex justify-between">
 									<span className="text-slate-400">Minimum Received</span>
 									<span>
-										{(
+										{formatTokenAmount(
 											Number.parseInt(quote.otherAmountThreshold, 10) /
-											10 ** (outputToken?.decimals || 0)
-										).toFixed(6)}{" "}
+												10 ** (outputToken?.decimals || 0),
+										)}{" "}
 										{outputToken?.symbol}
 									</span>
 								</div>
@@ -281,12 +282,12 @@ function SwapPage() {
 								{/* USD Value Summary */}
 								<div className="pt-2 mt-2 border-t border-slate-600/50 space-y-2">
 									<div className="flex justify-between">
-										<span className="text-slate-400">Input Value (USD)</span>
-										<span>${quote.inUsdValue.toFixed(2)}</span>
+										<span className="text-slate-400">Input Value</span>
+										<span>{formatUSD(quote.inUsdValue)}</span>
 									</div>
 									<div className="flex justify-between">
-										<span className="text-slate-400">Output Value (USD)</span>
-										<span>${quote.outUsdValue.toFixed(2)}</span>
+										<span className="text-slate-400">Output Value</span>
+										<span>{formatUSD(quote.outUsdValue)}</span>
 									</div>
 									<div className="flex justify-between">
 										<span className="text-slate-400">Total Cost</span>
@@ -299,7 +300,7 @@ function SwapPage() {
 														: "text-slate-300"
 											}
 										>
-											${(quote.inUsdValue - quote.outUsdValue).toFixed(2)}
+											{formatUSD(quote.inUsdValue - quote.outUsdValue)}
 										</span>
 									</div>
 								</div>
