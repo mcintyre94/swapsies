@@ -240,8 +240,10 @@ function SwapPage() {
 								<span>
 									1 {inputToken?.symbol} ≈{" "}
 									{(
-										Number.parseFloat(quote.outAmount) /
-										Number.parseFloat(quote.inAmount)
+										(Number.parseFloat(quote.outAmount) /
+											Number.parseFloat(quote.inAmount)) *
+										(10 ** (inputToken?.decimals || 0) /
+											10 ** (outputToken?.decimals || 0))
 									).toFixed(6)}{" "}
 									{outputToken?.symbol}
 								</span>
@@ -250,7 +252,9 @@ function SwapPage() {
 								<span className="text-slate-400">Price Impact</span>
 								<span
 									className={
-										quote.priceImpact > 1 ? "text-yellow-400" : "text-green-400"
+										Math.abs(quote.priceImpact) > 0.1
+											? "text-yellow-400"
+											: "text-green-400"
 									}
 								>
 									{quote.priceImpact.toFixed(2)}%
