@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useWalletUiAccount, WalletUiDropdown } from "@wallet-ui/react";
 import { ArrowDownUp, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import SwapButton from "../components/SwapButton";
 import { getOrder, searchTokens } from "../lib/server-functions";
 import type { JupiterOrderResponse, JupiterToken } from "../types/jupiter";
 
@@ -317,6 +318,13 @@ function SwapPage() {
 					{quoteError && (
 						<div className="mt-6 p-4 bg-red-900/20 border border-red-900/50 rounded-lg">
 							<p className="text-red-400">Failed to fetch quote</p>
+						</div>
+					)}
+
+					{/* Swap Button */}
+					{account && quote?.transaction && (
+						<div className="mt-6">
+							<SwapButton account={account} transaction={quote.transaction} />
 						</div>
 					)}
 				</div>
