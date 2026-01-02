@@ -270,6 +270,32 @@ function SwapPage() {
 									{outputToken?.symbol}
 								</span>
 							</div>
+
+							{/* USD Value Summary */}
+							<div className="pt-2 mt-2 border-t border-slate-600/50 space-y-2">
+								<div className="flex justify-between">
+									<span className="text-slate-400">Input Value (USD)</span>
+									<span>${quote.inUsdValue.toFixed(2)}</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-slate-400">Output Value (USD)</span>
+									<span>${quote.outUsdValue.toFixed(2)}</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-slate-400">Total Cost</span>
+									<span
+										className={
+											quote.outUsdValue >= quote.inUsdValue
+												? "text-green-400"
+												: quote.inUsdValue - quote.outUsdValue > 0.1
+													? "text-yellow-400"
+													: "text-slate-300"
+										}
+									>
+										${(quote.inUsdValue - quote.outUsdValue).toFixed(2)}
+									</span>
+								</div>
+							</div>
 						</div>
 					)}
 
