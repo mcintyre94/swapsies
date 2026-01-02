@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { WalletUiDropdown } from "@wallet-ui/react";
+import { useWalletUiAccount, WalletUiDropdown } from "@wallet-ui/react";
 import { ArrowDownUp, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { getOrder, searchTokens } from "../lib/server-functions";
@@ -33,6 +33,7 @@ function SwapPage() {
 	const [selectMode, setSelectMode] = useState<TokenSelectMode>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
+	const { account } = useWalletUiAccount();
 
 	// Load default tokens (top 2 from Jupiter)
 	const { data: defaultTokens } = useQuery({
@@ -111,6 +112,7 @@ function SwapPage() {
 			inputToken?.address,
 			outputToken?.address,
 			nativeAmount,
+			account?.address,
 		],
 		queryFn: () => {
 			// These are guaranteed to exist because of the enabled check
@@ -122,6 +124,7 @@ function SwapPage() {
 					inputMint: inputToken.address,
 					outputMint: outputToken.address,
 					amount: nativeAmount,
+					taker: account?.address,
 				},
 			});
 		},
