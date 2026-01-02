@@ -2,7 +2,12 @@ import { TanStackDevtools } from "@tanstack/react-devtools";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
-import { useState } from "react";
+import {
+	createSolanaDevnet,
+	createWalletUiConfig,
+	WalletUi,
+} from "@wallet-ui/react";
+import { useMemo, useState } from "react";
 
 import Header from "../components/Header";
 
@@ -46,6 +51,14 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 			}),
 	);
 
+	const config = useMemo(
+		() =>
+			createWalletUiConfig({
+				clusters: [createSolanaDevnet()],
+			}),
+		[],
+	);
+
 	return (
 		<html lang="en">
 			<head>
@@ -53,19 +66,21 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 			</head>
 			<body>
 				<QueryClientProvider client={queryClient}>
-					<Header />
-					{children}
-					<TanStackDevtools
-						config={{
-							position: "bottom-right",
-						}}
-						plugins={[
-							{
-								name: "Tanstack Router",
-								render: <TanStackRouterDevtoolsPanel />,
-							},
-						]}
-					/>
+					<WalletUi config={config}>
+						<Header />
+						{children}
+						<TanStackDevtools
+							config={{
+								position: "bottom-right",
+							}}
+							plugins={[
+								{
+									name: "Tanstack Router",
+									render: <TanStackRouterDevtoolsPanel />,
+								},
+							]}
+						/>
+					</WalletUi>
 				</QueryClientProvider>
 				<Scripts />
 			</body>

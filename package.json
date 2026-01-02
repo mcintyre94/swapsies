@@ -21,6 +21,8 @@
     "@tanstack/react-router-ssr-query": "^1.131.7",
     "@tanstack/react-start": "^1.132.0",
     "@tanstack/router-plugin": "^1.132.0",
+    "@wallet-ui/react": "^2.2.0",
+    "@wallet-ui/tailwind": "^2.2.0",
     "lucide-react": "^0.561.0",
     "nitro": "latest",
     "react": "^19.2.0",

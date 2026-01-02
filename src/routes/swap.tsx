@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { WalletUiDropdown } from "@wallet-ui/react";
 import { ArrowDownUp, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { getOrder, searchTokens } from "../lib/server-functions";
@@ -138,8 +139,13 @@ function SwapPage() {
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white p-8">
 			<div className="max-w-2xl mx-auto">
-				<h1 className="text-4xl font-bold mb-2">Swap</h1>
-				<p className="text-slate-400 mb-8">Exchange tokens on Solana</p>
+				<div className="flex justify-between items-start mb-8">
+					<div>
+						<h1 className="text-4xl font-bold mb-2">Swap</h1>
+						<p className="text-slate-400">Exchange tokens on Solana</p>
+					</div>
+					<WalletUiDropdown />
+				</div>
 
 				<div className="bg-slate-800 rounded-lg p-6">
 					{/* Input Token */}
