@@ -43,3 +43,23 @@ export interface JupiterOrderResponse {
 	errorCode?: string;
 	errorMessage?: string;
 }
+
+export interface JupiterExecuteResponse {
+	status: string;
+	signature: string;
+	slot: string;
+	code: number;
+	inputAmountResult: string;
+	outputAmountResult: string;
+	swapEvents: Array<{
+		inputMint: string;
+		inputAmount: string;
+		outputMint: string;
+		outputAmount: string;
+	}>;
+}
+
+export interface JupiterExecuteError {
+	code: number;
+	error: string;
+}

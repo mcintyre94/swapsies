@@ -1,5 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import type { JupiterOrderResponse, JupiterToken } from "../types/jupiter";
+import type {
+	JupiterExecuteError,
+	JupiterExecuteResponse,
+	JupiterOrderResponse,
+	JupiterToken,
+} from "../types/jupiter";
 
 interface JupiterTokenResponse {
 	id: string;
@@ -122,3 +127,53 @@ export const getOrder = createServerFn({ method: "GET" })
 			throw error;
 		}
 	});
+
+interface ExecuteSwapInput {
+	signedTransaction: string;
+	requestId: string;
+}
+
+export const executeSwap = createServerFn({ method: "POST" })
+	.inputValidator((input: ExecuteSwapInput) => input)
+	.handler(
+		async ({
+			data,
+		}): Promise<JupiterExecuteResponse | JupiterExecuteError> => {
+			const apiKey = process.env.JUPITER_API_KEY;
+
+			if (!apiKey) {
+				console.error("JUPITER_API_KEY environment variable is not set");
+				throw new Error("API configuration error");
+			}
+
+			try {
+				const response = await fetch("https://api.jup.ag/ultra/v1/execute", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						"x-api-key": apiKey,
+					},
+					body: JSON.stringify({
+						signedTransaction: data.signedTransaction,
+						requestId: data.requestId,
+					}),
+				});
+
+				const responseData = await response.json();
+
+				if (!response.ok) {
+					console.error(
+						`Jupiter execute API error: ${response.status} ${response.statusText}`,
+						responseData,
+					);
+					// Return error response from Jupiter
+					return responseData as JupiterExecuteError;
+				}
+
+				return responseData as JupiterExecuteResponse;
+			} catch (error) {
+				console.error("Error executing Jupiter swap:", error);
+				throw error;
+			}
+		},
+	);

@@ -1,4 +1,4 @@
-import { getBase64Encoder } from "@solana/kit";
+import { getBase64Codec } from "@solana/kit";
 import { useSignTransaction } from "@solana/react";
 import type { UiWalletAccount } from "@wallet-ui/react";
 import { ArrowRightLeft } from "lucide-react";
@@ -12,17 +12,19 @@ type Props = {
 
 function SwapButtonInner({ account, transaction }: Props) {
 	const signTransaction = useSignTransaction(account, "solana:mainnet");
+	const base64Codec = useMemo(() => getBase64Codec(), []);
 	const transactionBytes = useMemo(() => {
-		const encoder = getBase64Encoder();
-		return encoder.encode(transaction);
-	}, [transaction]);
+		return base64Codec.encode(transaction);
+	}, [transaction, base64Codec.encode]);
 
 	const handleSwap = useCallback(async () => {
-		const signedTransaction = await signTransaction({
-			transaction: transactionBytes as Uint8Array,
-		});
-		console.log("Signed Transaction:", signedTransaction);
-	}, [signTransaction, transactionBytes]);
+		const { signedTransaction: signedTransactionBytes } = await signTransaction(
+			{
+				transaction: transactionBytes as Uint8Array,
+			},
+		);
+		const signedTransaction = base64Codec.decode(signedTransactionBytes);
+	}, [signTransaction, transactionBytes, base64Codec.decode]);
 
 	return (
 		<button
