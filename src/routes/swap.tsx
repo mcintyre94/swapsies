@@ -126,7 +126,8 @@ function SwapPage() {
 			});
 		},
 		enabled: !!(inputToken && outputToken && nativeAmount),
-		staleTime: 30 * 1000, // 30 seconds
+		staleTime: 0, // Always fetch fresh quotes
+		gcTime: 30 * 1000, // Keep cached for 30 seconds to show while refetching
 	});
 
 	// Calculate output amount from quote
