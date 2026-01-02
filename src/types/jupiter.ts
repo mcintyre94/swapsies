@@ -63,3 +63,26 @@ export interface JupiterExecuteError {
 	code: number;
 	error: string;
 }
+
+export interface JupiterHoldingsResponse {
+	amount: string;
+	uiAmount: number;
+	uiAmountString: string;
+	tokens: {
+		[mintAddress: string]: Array<{
+			account: string;
+			amount: string;
+			uiAmount: number;
+			uiAmountString: string;
+			isFrozen: boolean;
+			isAssociatedTokenAccount: boolean;
+			decimals: number;
+			programId: string;
+		}>;
+	};
+}
+
+export interface WalletHolding {
+	mintAddress: string;
+	amount: bigint;
+}

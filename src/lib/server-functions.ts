@@ -2,8 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import type {
 	JupiterExecuteError,
 	JupiterExecuteResponse,
+	JupiterHoldingsResponse,
 	JupiterOrderResponse,
 	JupiterToken,
+	WalletHolding,
 } from "../types/jupiter";
 
 interface JupiterTokenResponse {
@@ -136,9 +138,7 @@ interface ExecuteSwapInput {
 export const executeSwap = createServerFn({ method: "POST" })
 	.inputValidator((input: ExecuteSwapInput) => input)
 	.handler(
-		async ({
-			data,
-		}): Promise<JupiterExecuteResponse | JupiterExecuteError> => {
+		async ({ data }): Promise<JupiterExecuteResponse | JupiterExecuteError> => {
 			const apiKey = process.env.JUPITER_API_KEY;
 
 			if (!apiKey) {
@@ -177,3 +177,81 @@ export const executeSwap = createServerFn({ method: "POST" })
 			}
 		},
 	);
+
+interface GetWalletHoldingsInput {
+	walletAddress: string;
+}
+
+export const getWalletHoldings = createServerFn({ method: "GET" })
+	.inputValidator((input: GetWalletHoldingsInput) => input)
+	.handler(async ({ data }): Promise<WalletHolding[]> => {
+		const apiKey = process.env.JUPITER_API_KEY;
+
+		if (!apiKey) {
+			console.error("JUPITER_API_KEY environment variable is not set");
+			throw new Error("API configuration error");
+		}
+
+		try {
+			const response = await fetch(
+				`https://api.jup.ag/ultra/v1/holdings/${data.walletAddress}`,
+				{
+					headers: {
+						"x-api-key": apiKey,
+					},
+				},
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				console.error(
+					`Jupiter API error: ${response.status} ${response.statusText}`,
+					errorData,
+				);
+
+				if (errorData.error === "Invalid address") {
+					throw new Error("Invalid wallet address provided");
+				}
+
+				throw new Error(
+					errorData.error || "Failed to fetch wallet holdings from Jupiter API",
+				);
+			}
+
+			const holdingsData: JupiterHoldingsResponse = await response.json();
+
+			// Sum amounts by mint address, using a Map to handle duplicate mints
+			const holdingsMap = new Map<string, bigint>();
+
+			// Add native SOL balance
+			const solMint = "So11111111111111111111111111111111111111112";
+			holdingsMap.set(solMint, BigInt(holdingsData.amount));
+
+			// Add token balances, summing if SOL mint already exists
+			for (const [mintAddress, tokenAccounts] of Object.entries(
+				holdingsData.tokens,
+			)) {
+				let totalAmount = 0n;
+				for (const tokenAccount of tokenAccounts) {
+					totalAmount += BigInt(tokenAccount.amount);
+				}
+
+				// If this mint already exists (e.g., wrapped SOL), sum the amounts
+				const existingAmount = holdingsMap.get(mintAddress) ?? 0n;
+				holdingsMap.set(mintAddress, existingAmount + totalAmount);
+			}
+
+			// Convert Map to array
+			const holdings: WalletHolding[] = Array.from(holdingsMap.entries()).map(
+				([mintAddress, amount]) => ({
+					mintAddress,
+					amount,
+				}),
+			);
+
+			return holdings;
+		} catch (error) {
+			console.error("Error fetching wallet holdings:", error);
+			throw error;
+		}
+	});
