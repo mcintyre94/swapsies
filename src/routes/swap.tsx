@@ -131,6 +131,7 @@ function SwapPage() {
 		enabled: !!(inputToken && outputToken && nativeAmount),
 		staleTime: 0, // Always fetch fresh quotes
 		gcTime: 30 * 1000, // Keep cached for 30 seconds to show while refetching
+		refetchInterval: 5 * 1000, // Refetch every 5 seconds to keep quotes fresh
 	});
 
 	// Calculate output amount from quote
