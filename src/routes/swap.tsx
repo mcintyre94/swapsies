@@ -5,7 +5,11 @@ import { ArrowDownUp, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import SwapButton from "../components/SwapButton";
 import { formatNumber, formatTokenAmount, formatUSD } from "../lib/format";
-import { getOrder, searchTokens } from "../lib/server-functions";
+import {
+	getOrder,
+	getWalletHoldings,
+	searchTokens,
+} from "../lib/server-functions";
 import type { JupiterOrderResponse, JupiterToken } from "../types/jupiter";
 
 export const Route = createFileRoute("/swap")({
@@ -36,6 +40,52 @@ function SwapPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 	const { account } = useWalletUiAccount();
+
+	// Fetch wallet holdings
+	const { data: holdings = [] } = useQuery({
+		queryKey: ["holdings", account?.address],
+		queryFn: () =>
+			account?.address
+				? getWalletHoldings({ data: { walletAddress: account.address } })
+				: Promise.resolve([]),
+		enabled: !!account?.address,
+		staleTime: 30 * 1000, // Cache for 30 seconds
+	});
+
+	// Get balance for selected input token
+	const inputTokenBalance = useMemo(() => {
+		if (!inputToken || holdings.length === 0) return null;
+		const holding = holdings.find((h) => h.mintAddress === inputToken.address);
+		if (!holding) return 0n;
+		return holding.amount;
+	}, [inputToken, holdings]);
+
+	// Convert balance to UI amount
+	const inputTokenBalanceUI = useMemo(() => {
+		if (inputTokenBalance === null || !inputToken) return null;
+		return Number(inputTokenBalance) / 10 ** inputToken.decimals;
+	}, [inputTokenBalance, inputToken]);
+
+	// Check if amount exceeds balance
+	const isAmountExceedingBalance = useMemo(() => {
+		if (!amount || inputTokenBalanceUI === null) return false;
+		const amountNum = Number.parseFloat(amount);
+		if (Number.isNaN(amountNum)) return false;
+		return amountNum > inputTokenBalanceUI;
+	}, [amount, inputTokenBalanceUI]);
+
+	// Handler functions for half/max buttons
+	const handleSetHalf = () => {
+		if (inputTokenBalanceUI !== null) {
+			setAmount((inputTokenBalanceUI / 2).toString());
+		}
+	};
+
+	const handleSetMax = () => {
+		if (inputTokenBalanceUI !== null) {
+			setAmount(inputTokenBalanceUI.toString());
+		}
+	};
 
 	// Load default tokens (top 2 from Jupiter)
 	const { data: defaultTokens } = useQuery({
@@ -186,9 +236,43 @@ function SwapPage() {
 								onChange={(e) => setAmount(e.target.value)}
 								onWheel={(e) => e.currentTarget.blur()}
 								placeholder="0.00"
-								className="flex-1 px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+								className={`flex-1 px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 ${
+									isAmountExceedingBalance
+										? "ring-2 ring-red-500 focus:ring-red-500"
+										: "focus:ring-cyan-500"
+								}`}
 							/>
 						</div>
+						{account && inputToken && inputTokenBalanceUI !== null && (
+							<div className="mt-2 flex items-center justify-between text-sm">
+								<div className="text-slate-400">
+									Balance: {formatTokenAmount(inputTokenBalanceUI)}{" "}
+									{inputToken.symbol}
+								</div>
+								<div className="flex gap-2">
+									<button
+										type="button"
+										onClick={handleSetHalf}
+										className="text-cyan-400 hover:text-cyan-300 transition-colors"
+									>
+										Half
+									</button>
+									<span className="text-slate-600">|</span>
+									<button
+										type="button"
+										onClick={handleSetMax}
+										className="text-cyan-400 hover:text-cyan-300 transition-colors"
+									>
+										Max
+									</button>
+								</div>
+							</div>
+						)}
+						{isAmountExceedingBalance && (
+							<div className="mt-2 text-sm text-red-400">
+								Amount exceeds your balance
+							</div>
+						)}
 					</div>
 
 					{/* Swap button */}
