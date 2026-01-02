@@ -237,78 +237,80 @@ function SwapPage() {
 					</div>
 
 					{/* Quote details */}
-					{quote && !quote.errorCode && (
-						<div className="mt-6 p-4 bg-slate-700/50 rounded-lg space-y-2 text-sm">
-							<div className="flex justify-between">
-								<span className="text-slate-400">Rate</span>
-								<span>
-									1 {inputToken?.symbol} ≈{" "}
-									{(
-										(Number.parseFloat(quote.outAmount) /
-											Number.parseFloat(quote.inAmount)) *
-										(10 ** (inputToken?.decimals || 0) /
-											10 ** (outputToken?.decimals || 0))
-									).toFixed(6)}{" "}
-									{outputToken?.symbol}
-								</span>
-							</div>
-							<div className="flex justify-between">
-								<span className="text-slate-400">Price Impact</span>
-								<span
-									className={
-										Math.abs(quote.priceImpact) > 0.1
-											? "text-yellow-400"
-											: "text-green-400"
-									}
-								>
-									{quote.priceImpact.toFixed(2)}%
-								</span>
-							</div>
-							<div className="flex justify-between">
-								<span className="text-slate-400">Minimum Received</span>
-								<span>
-									{(
-										Number.parseInt(quote.otherAmountThreshold, 10) /
-										10 ** (outputToken?.decimals || 0)
-									).toFixed(6)}{" "}
-									{outputToken?.symbol}
-								</span>
-							</div>
-
-							{/* USD Value Summary */}
-							<div className="pt-2 mt-2 border-t border-slate-600/50 space-y-2">
+					{quote && (
+						<>
+							<div className="mt-6 p-4 bg-slate-700/50 rounded-lg space-y-2 text-sm">
 								<div className="flex justify-between">
-									<span className="text-slate-400">Input Value (USD)</span>
-									<span>${quote.inUsdValue.toFixed(2)}</span>
-								</div>
-								<div className="flex justify-between">
-									<span className="text-slate-400">Output Value (USD)</span>
-									<span>${quote.outUsdValue.toFixed(2)}</span>
-								</div>
-								<div className="flex justify-between">
-									<span className="text-slate-400">Total Cost</span>
-									<span
-										className={
-											quote.outUsdValue >= quote.inUsdValue
-												? "text-green-400"
-												: quote.inUsdValue - quote.outUsdValue > 0.1
-													? "text-yellow-400"
-													: "text-slate-300"
-										}
-									>
-										${(quote.inUsdValue - quote.outUsdValue).toFixed(2)}
+									<span className="text-slate-400">Rate</span>
+									<span>
+										1 {inputToken?.symbol} ≈{" "}
+										{(
+											(Number.parseFloat(quote.outAmount) /
+												Number.parseFloat(quote.inAmount)) *
+											(10 ** (inputToken?.decimals || 0) /
+												10 ** (outputToken?.decimals || 0))
+										).toFixed(6)}{" "}
+										{outputToken?.symbol}
 									</span>
 								</div>
-							</div>
-						</div>
-					)}
+								<div className="flex justify-between">
+									<span className="text-slate-400">Price Impact</span>
+									<span
+										className={
+											Math.abs(quote.priceImpact) > 0.1
+												? "text-yellow-400"
+												: "text-green-400"
+										}
+									>
+										{quote.priceImpact.toFixed(2)}%
+									</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-slate-400">Minimum Received</span>
+									<span>
+										{(
+											Number.parseInt(quote.otherAmountThreshold, 10) /
+											10 ** (outputToken?.decimals || 0)
+										).toFixed(6)}{" "}
+										{outputToken?.symbol}
+									</span>
+								</div>
 
-					{quote?.errorCode && (
-						<div className="mt-6 p-4 bg-red-900/20 border border-red-900/50 rounded-lg">
-							<p className="text-red-400">
-								{quote.errorMessage || "Failed to get quote"}
-							</p>
-						</div>
+								{/* USD Value Summary */}
+								<div className="pt-2 mt-2 border-t border-slate-600/50 space-y-2">
+									<div className="flex justify-between">
+										<span className="text-slate-400">Input Value (USD)</span>
+										<span>${quote.inUsdValue.toFixed(2)}</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-slate-400">Output Value (USD)</span>
+										<span>${quote.outUsdValue.toFixed(2)}</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-slate-400">Total Cost</span>
+										<span
+											className={
+												quote.outUsdValue >= quote.inUsdValue
+													? "text-green-400"
+													: quote.inUsdValue - quote.outUsdValue > 0.1
+														? "text-yellow-400"
+														: "text-slate-300"
+											}
+										>
+											${(quote.inUsdValue - quote.outUsdValue).toFixed(2)}
+										</span>
+									</div>
+								</div>
+							</div>
+
+							{quote.errorCode && (
+								<div className="mt-4 p-4 bg-red-900/20 border border-red-900/50 rounded-lg">
+									<p className="text-red-400">
+										{quote.errorMessage || "Failed to get quote"}
+									</p>
+								</div>
+							)}
+						</>
 					)}
 
 					{quoteError && (
