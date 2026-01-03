@@ -99,6 +99,55 @@ const { data } = useQuery({
 
 ## Common Patterns
 
+### TanStack Router - Styling Active Links
+
+When styling navigation links with different hover states for active vs inactive states, use the `activeProps` and `inactiveProps` pattern:
+
+```tsx
+<Link
+  to="/path"
+  className="shared-classes-for-both-states"
+  activeProps={{
+    className: "classes-only-for-active-state",
+  }}
+  inactiveProps={{
+    className: "classes-only-for-inactive-state",
+  }}
+>
+  Link Text
+</Link>
+```
+
+**Key insights:**
+- TanStack Router **merges** the base `className` with either `activeProps.className` or `inactiveProps.className`
+- Put shared styles in the base `className` (e.g., padding, font-weight, border-radius, transitions)
+- Put state-specific styles in `activeProps`/`inactiveProps` only (e.g., background colors, hover states)
+- **Don't duplicate** shared styles between base `className` and the props - they get merged automatically
+
+**Example from Header.tsx:**
+```tsx
+<Link
+  to="/"
+  className="font-medium px-3 py-2 rounded-lg transition-colors"
+  activeOptions={{ exact: true }}
+  activeProps={{
+    className: "bg-teal-600 hover:bg-teal-700",
+  }}
+  inactiveProps={{
+    className: "hover:bg-gray-700",
+  }}
+>
+  Swap
+</Link>
+```
+
+This results in:
+- **Active link:** `font-medium px-3 py-2 rounded-lg transition-colors bg-teal-600 hover:bg-teal-700`
+- **Inactive link:** `font-medium px-3 py-2 rounded-lg transition-colors hover:bg-gray-700`
+
+**Why use both `activeProps` and `inactiveProps`?**
+If you only use `activeProps`, both the base className hover and active hover classes will be present on active links, causing CSS specificity conflicts where the wrong hover color might apply.
+
 ### Token Search
 
 ```typescript
