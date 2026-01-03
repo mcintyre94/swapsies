@@ -421,9 +421,13 @@ function SwapPage() {
 					)}
 
 					{/* Swap Button */}
-					{account && quote?.transaction && (
+					{account && quote?.transaction && quote?.requestId && (
 						<div className="mt-6">
-							<SwapButton account={account} transaction={quote.transaction} />
+							<SwapButton
+								account={account}
+								transaction={quote.transaction}
+								requestId={quote.requestId}
+							/>
 						</div>
 					)}
 				</div>

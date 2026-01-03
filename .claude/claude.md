@@ -1,5 +1,7 @@
 # Swapsies - Claude Code Instructions
 
+> **Note for Claude:** This file is located at `.claude/claude.md` and is automatically loaded into your context at the start of every conversation. When adding project-specific patterns or gotchas, **always update this file** rather than creating new documentation files. Check this file exists before creating any CLAUDE.md or similar files.
+
 ## Project Overview
 
 Swapsies is a Solana token swap application built with TanStack Start. It allows users to:
@@ -173,6 +175,51 @@ src/
 6. Verify zero errors with `pnpm typecheck` and `pnpm biome check .`
 7. Test in browser (dev server runs on port 3000)
 8. Commit when feature is complete
+
+## Wallet Integration Patterns
+
+### Error Handling for Wallet Operations
+
+When catching errors from wallet operations (signing transactions, connecting, etc.), be aware that wallet adapters may throw errors in different formats:
+
+- Some wallets throw proper `Error` objects (`error instanceof Error`)
+- Some wallets throw plain strings or other primitives
+
+Always handle both cases when catching wallet errors:
+
+```typescript
+catch (error) {
+  const errorMessage =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "Unknown error";
+
+  // Now process errorMessage safely
+}
+```
+
+This pattern was discovered when implementing transaction signing in SwapButton.tsx where certain wallet adapters threw string errors instead of Error objects.
+
+### User-Friendly Error Messages
+
+Detect common user rejection patterns and provide friendly messages:
+
+```typescript
+const isUserRejection =
+  errorMessage.toLowerCase().includes("rejected") ||
+  errorMessage.toLowerCase().includes("declined") ||
+  errorMessage.toLowerCase().includes("denied") ||
+  errorMessage.toLowerCase().includes("cancelled") ||
+  errorMessage.toLowerCase().includes("canceled") ||
+  (errorMessage.toLowerCase().includes("user") &&
+    errorMessage.toLowerCase().includes("abort"));
+
+const displayMessage = isUserRejection
+  ? "Transaction signing was cancelled"
+  : errorMessage;
+```
 
 ## Don't Do
 
