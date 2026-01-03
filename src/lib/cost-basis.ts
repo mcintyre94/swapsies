@@ -4,6 +4,7 @@ export interface StoredCostBasis {
 	tokenName: string;
 	tokenSymbol: string;
 	tokenLogo?: string;
+	isVerified?: boolean;
 }
 
 export const COST_BASIS_STORAGE_KEY = "costBasisData";

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Loader2, Search, Trash2 } from "lucide-react";
+import { ExternalLink, Loader2, Search, Trash2 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
 	getCostBasisData,
@@ -148,6 +148,7 @@ function CostBasisPage() {
 			tokenName: selectedToken.name,
 			tokenSymbol: selectedToken.symbol,
 			tokenLogo: selectedToken.logo,
+			isVerified: selectedToken.isVerified,
 		};
 
 		const success = saveCostBasisData(costBasisData);
@@ -296,6 +297,7 @@ function CostBasisPage() {
 							tokenName: token.name,
 							tokenSymbol: token.symbol,
 							tokenLogo: token.logo,
+							isVerified: token.isVerified,
 						};
 					} else {
 						// Token not found in Jupiter - save with placeholder metadata
@@ -444,8 +446,21 @@ function CostBasisPage() {
 														/>
 													)}
 													<div>
-														<div className="font-semibold">
-															{entry.tokenSymbol}
+														<div className="flex items-center gap-2">
+															<a
+																href={`https://orbmarkets.io/address/${entry.tokenAddress}`}
+																target="_blank"
+																rel="noopener noreferrer"
+																className="font-semibold hover:text-cyan-400 transition-colors flex items-center gap-1"
+															>
+																{entry.tokenSymbol}
+																<ExternalLink className="w-3 h-3" />
+															</a>
+															{entry.isVerified && (
+																<span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded">
+																	Verified
+																</span>
+															)}
 														</div>
 														<div className="text-sm text-slate-400">
 															{entry.tokenName}

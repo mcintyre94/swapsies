@@ -154,7 +154,7 @@ function SwapButtonInner({ account, transaction, requestId }: Props) {
 						<span>
 							Swap successful!{" "}
 							<a
-								href={`https://explorer.solana.com/tx/${executionSuccess.signature}`}
+								href={`https://orbmarkets.io/tx/${executionSuccess.signature}`}
 								target="_blank"
 								rel="noopener noreferrer"
 								className="underline hover:text-green-300"
