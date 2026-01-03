@@ -17,12 +17,13 @@ export default function Header() {
 					<Menu size={24} />
 				</button>
 				<h1 className="ml-4 text-xl font-semibold">
-					<Link to="/">
+					<Link to="/" className="flex items-center gap-3">
 						<img
-							src="/tanstack-word-logo-white.svg"
-							alt="TanStack Logo"
+							src="/swapsies-logo-400.png"
+							alt="Swapsies Logo"
 							className="h-10"
 						/>
+						<span className="text-2xl font-bold">Swapsies</span>
 					</Link>
 				</h1>
 			</header>
