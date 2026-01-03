@@ -449,7 +449,7 @@ function SwapPage() {
 											</div>
 											<div className="flex justify-between items-center">
 												<span className="text-slate-400">
-													Realized Gain/Loss
+													Estimated Gain/Loss
 												</span>
 												<div className="text-right">
 													<div
