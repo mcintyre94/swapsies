@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Search, Trash2 } from "lucide-react";
+import { Loader2, Search, Trash2 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
 	getCostBasisData,
@@ -8,7 +8,7 @@ import {
 	saveCostBasisData,
 } from "../lib/cost-basis";
 import { formatUSD } from "../lib/format";
-import { searchTokens } from "../lib/server-functions";
+import { batchSearchTokens, searchTokens } from "../lib/server-functions";
 import type { JupiterToken } from "../types/jupiter";
 
 export const Route = createFileRoute("/cost-basis")({
@@ -41,6 +41,14 @@ function CostBasisPage() {
 	const [totalBalance, setTotalBalance] = useState("");
 	const [totalCost, setTotalCost] = useState("");
 	const [savedCostBasis, setSavedCostBasis] = useState<StoredCostBasis[]>([]);
+
+	// Import state management
+	const [isImporting, setIsImporting] = useState(false);
+	const [importProgress, setImportProgress] = useState<{
+		current: number;
+		total: number;
+	} | null>(null);
+	const [importError, setImportError] = useState<string | null>(null);
 
 	// Load saved cost basis data on mount (runs before paint)
 	useLayoutEffect(() => {
@@ -146,7 +154,14 @@ function CostBasisPage() {
 
 	const handleExport = () => {
 		const costBasisData = getCostBasisData();
-		const dataStr = JSON.stringify(costBasisData, null, 2);
+
+		// Transform to minimal format: { mint: costBasis, ... }
+		const minimalData: Record<string, number> = {};
+		for (const [address, entry] of Object.entries(costBasisData)) {
+			minimalData[address] = entry.costBasisUSD;
+		}
+
+		const dataStr = JSON.stringify(minimalData, null, 2);
 		const blob = new Blob([dataStr], { type: "application/json" });
 		const url = URL.createObjectURL(blob);
 
@@ -159,35 +174,128 @@ function CostBasisPage() {
 		URL.revokeObjectURL(url);
 	};
 
-	const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+	const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0];
 		if (!file) return;
 
+		// Reset state
+		setIsImporting(true);
+		setImportError(null);
+		setImportProgress(null);
+
 		const reader = new FileReader();
-		reader.onload = (e) => {
+
+		reader.onload = async (e) => {
 			try {
 				const content = e.target?.result as string;
 				const importedData = JSON.parse(content);
 
-				// Validate the data structure
+				// Validate basic structure
 				if (typeof importedData !== "object" || importedData === null) {
-					alert("Invalid file format");
-					return;
+					throw new Error("Invalid file format");
 				}
 
-				// Save the imported data
-				const success = saveCostBasisData(importedData);
+				// Extract mint addresses and cost basis values
+				const mintAddresses = Object.keys(importedData);
+
+				if (mintAddresses.length === 0) {
+					throw new Error("No cost basis entries found in file");
+				}
+
+				// Validate that all values are numbers
+				for (const [mint, value] of Object.entries(importedData)) {
+					if (typeof value !== "number") {
+						throw new Error(`Invalid cost basis value for token ${mint}`);
+					}
+				}
+
+				const costBasisMap: Record<string, number> = importedData;
+
+				setImportProgress({ current: 0, total: mintAddresses.length });
+
+				// Batch fetch in chunks of 100
+				const BATCH_SIZE = 100;
+				const batches: string[][] = [];
+				for (let i = 0; i < mintAddresses.length; i += BATCH_SIZE) {
+					batches.push(mintAddresses.slice(i, i + BATCH_SIZE));
+				}
+
+				// Fetch all batches
+				const allTokens: JupiterToken[] = [];
+				for (let i = 0; i < batches.length; i++) {
+					const batch = batches[i];
+					const tokens = await batchSearchTokens({
+						data: { mintAddresses: batch },
+					});
+					allTokens.push(...tokens);
+					setImportProgress({
+						current: Math.min((i + 1) * BATCH_SIZE, mintAddresses.length),
+						total: mintAddresses.length,
+					});
+				}
+
+				// Create token lookup map
+				const tokenMap = new Map<string, JupiterToken>();
+				for (const token of allTokens) {
+					tokenMap.set(token.address, token);
+				}
+
+				// Reconstruct full StoredCostBasis objects
+				const reconstructedData: Record<string, StoredCostBasis> = {};
+				const missingTokens: string[] = [];
+
+				for (const [mintAddress, costBasis] of Object.entries(costBasisMap)) {
+					const token = tokenMap.get(mintAddress);
+
+					if (token) {
+						reconstructedData[mintAddress] = {
+							tokenAddress: mintAddress,
+							costBasisUSD: costBasis,
+							tokenName: token.name,
+							tokenSymbol: token.symbol,
+							tokenLogo: token.logo,
+						};
+					} else {
+						// Token not found in Jupiter - save with placeholder metadata
+						missingTokens.push(mintAddress);
+						reconstructedData[mintAddress] = {
+							tokenAddress: mintAddress,
+							costBasisUSD: costBasis,
+							tokenName: "Unknown Token",
+							tokenSymbol: "???",
+							tokenLogo: undefined,
+						};
+					}
+				}
+
+				// Save reconstructed data
+				const success = saveCostBasisData(reconstructedData);
+
 				if (success) {
-					// Reload saved data
 					const updatedData = getCostBasisData();
 					const entries = Object.values(updatedData) as StoredCostBasis[];
 					setSavedCostBasis(entries);
+
+					// Show warning if some tokens were missing
+					if (missingTokens.length > 0) {
+						setImportError(
+							`Import successful, but ${missingTokens.length} token${missingTokens.length > 1 ? "s" : ""} could not be found in Jupiter API. They will be shown as "Unknown Token".`,
+						);
+					}
 				}
+
+				setIsImporting(false);
+				setImportProgress(null);
 			} catch (error) {
 				console.error("Failed to import data:", error);
-				alert("Failed to import file. Please check the file format.");
+				const errorMessage =
+					error instanceof Error ? error.message : "Unknown error";
+				setImportError(`Failed to import: ${errorMessage}`);
+				setIsImporting(false);
+				setImportProgress(null);
 			}
 		};
+
 		reader.readAsText(file);
 
 		// Reset the input so the same file can be imported again
@@ -208,12 +316,26 @@ function CostBasisPage() {
 						>
 							Export
 						</button>
-						<label className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors cursor-pointer">
-							Import
+						<label
+							className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+								isImporting
+									? "bg-slate-800 text-slate-600 cursor-not-allowed"
+									: "bg-slate-700 hover:bg-slate-600 cursor-pointer"
+							}`}
+						>
+							{isImporting ? (
+								<span className="flex items-center gap-2">
+									<Loader2 className="w-4 h-4 animate-spin" />
+									Importing...
+								</span>
+							) : (
+								"Import"
+							)}
 							<input
 								type="file"
 								accept=".json"
 								onChange={handleImport}
+								disabled={isImporting}
 								className="hidden"
 							/>
 						</label>
@@ -222,6 +344,29 @@ function CostBasisPage() {
 				<p className="text-slate-400 mb-8">
 					Enter cost basis data from your tax software
 				</p>
+
+				{importProgress && (
+					<div className="mb-6 p-4 bg-slate-800 rounded-lg">
+						<p className="text-sm text-slate-400 mb-2">
+							Fetching token metadata: {importProgress.current} /{" "}
+							{importProgress.total}
+						</p>
+						<div className="w-full bg-slate-700 rounded-full h-2">
+							<div
+								className="bg-cyan-500 h-2 rounded-full transition-all duration-300"
+								style={{
+									width: `${(importProgress.current / importProgress.total) * 100}%`,
+								}}
+							/>
+						</div>
+					</div>
+				)}
+
+				{importError && (
+					<div className="mb-6 p-4 bg-yellow-900/20 border border-yellow-900/50 rounded-lg">
+						<p className="text-yellow-400 text-sm">{importError}</p>
+					</div>
+				)}
 
 				{savedCostBasis.length > 0 && (
 					<div className="bg-slate-800 rounded-lg p-6 mb-8">

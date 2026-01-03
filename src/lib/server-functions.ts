@@ -75,6 +75,71 @@ export const searchTokens = createServerFn({ method: "GET" })
 		}
 	});
 
+interface BatchSearchTokensInput {
+	mintAddresses: string[];
+}
+
+export const batchSearchTokens = createServerFn({ method: "GET" })
+	.inputValidator((input: BatchSearchTokensInput) => input)
+	.handler(async ({ data, signal }): Promise<JupiterToken[]> => {
+		const apiKey = process.env.JUPITER_API_KEY;
+
+		if (!apiKey) {
+			console.error("JUPITER_API_KEY environment variable is not set");
+			throw new Error("API configuration error");
+		}
+
+		// Jupiter Ultra API supports up to 100 mint addresses comma-separated
+		const MAX_BATCH_SIZE = 100;
+		if (data.mintAddresses.length > MAX_BATCH_SIZE) {
+			throw new Error(
+				`Cannot fetch more than ${MAX_BATCH_SIZE} tokens at once`,
+			);
+		}
+
+		if (data.mintAddresses.length === 0) {
+			return [];
+		}
+
+		// Join mint addresses with commas
+		const query = data.mintAddresses.join(",");
+
+		try {
+			const response = await fetch(
+				`https://api.jup.ag/ultra/v1/search?query=${encodeURIComponent(query)}`,
+				{
+					headers: {
+						"x-api-key": apiKey,
+					},
+					signal,
+				},
+			);
+
+			if (!response.ok) {
+				console.error(
+					`Jupiter API error: ${response.status} ${response.statusText}`,
+				);
+				throw new Error("Failed to fetch tokens from Jupiter API");
+			}
+
+			const responseData: JupiterTokenResponse[] = await response.json();
+
+			// Transform to our client format
+			return responseData.map((token) => ({
+				address: token.id,
+				name: token.name,
+				symbol: token.symbol,
+				logo: token.icon,
+				decimals: token.decimals,
+				tags: token.tags,
+				isVerified: token.isVerified,
+			}));
+		} catch (error) {
+			console.error("Error fetching tokens:", error);
+			throw new Error("Failed to fetch tokens");
+		}
+	});
+
 interface GetOrderInput {
 	inputMint: string;
 	outputMint: string;
