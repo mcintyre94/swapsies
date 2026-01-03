@@ -1,6 +1,6 @@
 {
-  "name": "MyWebSite",
-  "short_name": "MySite",
+  "name": "Swapsies",
+  "short_name": "Swapsies",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
