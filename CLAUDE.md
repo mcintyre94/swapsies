@@ -225,6 +225,43 @@ src/
 7. Test in browser (dev server runs on port 3000)
 8. Commit when feature is complete
 
+## Solana Address Validation
+
+### Using @solana/kit for Address Validation
+
+Always use `@solana/kit` for Solana address validation (never use `@solana/web3.js`):
+
+- **`Address` type** - Use this TypeScript type for typed addresses
+- **`isAddress(str)`** - Check if a string is a valid Solana address (returns boolean)
+- **`address(str)`** - Cast and validate a string to Address type (throws if invalid)
+
+Example usage:
+
+```typescript
+import { type Address, address, isAddress } from "@solana/kit";
+
+// Check if valid
+if (isAddress(userInput)) {
+  // userInput is a valid address
+}
+
+// Validate and convert (throws on invalid)
+try {
+  const addr: Address = address(userInput);
+  // Use addr...
+} catch (error) {
+  // Handle invalid address
+}
+```
+
+For validation utilities, see `/src/lib/validation.ts`.
+
+### Network Configuration
+
+- **The app only uses Solana mainnet** - No devnet or testnet support
+- The `cluster` parameter in `createWalletUiConfig` (in `__root.tsx`) is required by the wallet-ui library but **not actually used**
+- All transactions are signed and submitted to mainnet
+
 ## Wallet Integration Patterns
 
 ### Error Handling for Wallet Operations

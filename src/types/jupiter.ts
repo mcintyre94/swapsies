@@ -1,5 +1,9 @@
+import type { Address, Signature } from "@solana/kit";
+
+type StringifiedNumber = string;
+
 export interface JupiterToken {
-	address: string;
+	address: Address;
 	name: string;
 	symbol: string;
 	logo?: string;
@@ -10,28 +14,28 @@ export interface JupiterToken {
 
 export interface JupiterOrderResponse {
 	mode: string;
-	inAmount: string;
-	outAmount: string;
-	otherAmountThreshold: string;
+	inAmount: StringifiedNumber;
+	outAmount: StringifiedNumber;
+	otherAmountThreshold: StringifiedNumber;
 	swapMode: string;
 	slippageBps: number;
-	priceImpactPct: string;
+	priceImpactPct: StringifiedNumber;
 	routePlan: Array<{
 		// biome-ignore lint/suspicious/noExplicitAny: Jupiter API returns dynamic swap info
 		swapInfo: Record<string, any>;
 		percent: number;
 		bps: number;
 	}>;
-	feeMint: string;
+	feeMint: Address;
 	feeBps: number;
-	taker?: string;
+	taker?: Address;
 	gasless: boolean;
 	signatureFeeLamports: number;
 	transaction?: string;
 	prioritizationFeeLamports: number;
 	rentFeeLamports: number;
-	inputMint: string;
-	outputMint: string;
+	inputMint: Address;
+	outputMint: Address;
 	swapType: string;
 	router: string;
 	requestId: string;
@@ -46,16 +50,16 @@ export interface JupiterOrderResponse {
 
 export interface JupiterExecuteResponse {
 	status: string;
-	signature: string;
-	slot: string;
+	signature: Signature;
+	slot: StringifiedNumber;
 	code: number;
-	inputAmountResult: string;
-	outputAmountResult: string;
+	inputAmountResult: StringifiedNumber;
+	outputAmountResult: StringifiedNumber;
 	swapEvents: Array<{
-		inputMint: string;
-		inputAmount: string;
-		outputMint: string;
-		outputAmount: string;
+		inputMint: Address;
+		inputAmount: StringifiedNumber;
+		outputMint: Address;
+		outputAmount: StringifiedNumber;
 	}>;
 }
 
@@ -67,22 +71,22 @@ export interface JupiterExecuteError {
 export interface JupiterHoldingsResponse {
 	amount: string;
 	uiAmount: number;
-	uiAmountString: string;
+	uiAmountString: StringifiedNumber;
 	tokens: {
-		[mintAddress: string]: Array<{
-			account: string;
-			amount: string;
+		[mintAddress: Address]: Array<{
+			account: Address;
+			amount: StringifiedNumber;
 			uiAmount: number;
-			uiAmountString: string;
+			uiAmountString: StringifiedNumber;
 			isFrozen: boolean;
 			isAssociatedTokenAccount: boolean;
 			decimals: number;
-			programId: string;
+			programId: Address;
 		}>;
 	};
 }
 
 export interface WalletHolding {
-	mintAddress: string;
+	mintAddress: Address;
 	amount: bigint;
 }

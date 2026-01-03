@@ -9,6 +9,7 @@ import {
 } from "../lib/cost-basis";
 import { formatUSD } from "../lib/format";
 import { batchSearchTokens, searchTokens } from "../lib/server-functions";
+import { isNonNegativeNumber, validateAddresses } from "../lib/validation";
 import type { JupiterToken } from "../types/jupiter";
 
 export const Route = createFileRoute("/cost-basis")({
@@ -202,22 +203,36 @@ function CostBasisPage() {
 					throw new Error("No cost basis entries found in file");
 				}
 
-				// Validate that all values are numbers
+				// Validate that all values are non-negative numbers (allows 0 for airdrops)
 				for (const [mint, value] of Object.entries(importedData)) {
 					if (typeof value !== "number") {
 						throw new Error(`Invalid cost basis value for token ${mint}`);
 					}
+					if (!isNonNegativeNumber(value)) {
+						throw new Error(
+							`Cost basis must be a non-negative number for token ${mint}`,
+						);
+					}
+				}
+
+				// Validate mint addresses are valid Solana addresses
+				const { valid: validAddresses, invalid: invalidAddresses } =
+					validateAddresses(mintAddresses);
+				if (invalidAddresses.length > 0) {
+					throw new Error(
+						`Invalid Solana addresses found: ${invalidAddresses.slice(0, 3).join(", ")}${invalidAddresses.length > 3 ? "..." : ""}`,
+					);
 				}
 
 				const costBasisMap: Record<string, number> = importedData;
 
-				setImportProgress({ current: 0, total: mintAddresses.length });
+				setImportProgress({ current: 0, total: validAddresses.length });
 
 				// Batch fetch in chunks of 100
 				const BATCH_SIZE = 100;
 				const batches: string[][] = [];
-				for (let i = 0; i < mintAddresses.length; i += BATCH_SIZE) {
-					batches.push(mintAddresses.slice(i, i + BATCH_SIZE));
+				for (let i = 0; i < validAddresses.length; i += BATCH_SIZE) {
+					batches.push(validAddresses.slice(i, i + BATCH_SIZE));
 				}
 
 				// Fetch all batches

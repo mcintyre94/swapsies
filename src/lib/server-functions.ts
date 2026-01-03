@@ -1,3 +1,4 @@
+import { type Address, isAddress } from "@solana/kit";
 import { createServerFn } from "@tanstack/react-start";
 import type {
 	JupiterExecuteError,
@@ -7,9 +8,10 @@ import type {
 	JupiterToken,
 	WalletHolding,
 } from "../types/jupiter";
+import { validateAddresses } from "./validation";
 
 interface JupiterTokenResponse {
-	id: string;
+	id: Address;
 	name: string;
 	symbol: string;
 	icon?: string;
@@ -101,8 +103,16 @@ export const batchSearchTokens = createServerFn({ method: "GET" })
 			return [];
 		}
 
+		// Validate all mint addresses are valid Solana addresses
+		const { valid, invalid } = validateAddresses(data.mintAddresses);
+		if (invalid.length > 0) {
+			throw new Error(
+				`Invalid Solana addresses: ${invalid.slice(0, 5).join(", ")}${invalid.length > 5 ? "..." : ""}`,
+			);
+		}
+
 		// Join mint addresses with commas
-		const query = data.mintAddresses.join(",");
+		const query = valid.join(",");
 
 		try {
 			const response = await fetch(
@@ -157,7 +167,13 @@ export const getOrder = createServerFn({ method: "GET" })
 			throw new Error("API configuration error");
 		}
 
-		console.log("signal aborted?", signal.aborted, signal.reason);
+		// Validate mint addresses
+		if (!isAddress(data.inputMint)) {
+			throw new Error(`Invalid input mint address: ${data.inputMint}`);
+		}
+		if (!isAddress(data.outputMint)) {
+			throw new Error(`Invalid output mint address: ${data.outputMint}`);
+		}
 
 		const params = new URLSearchParams({
 			inputMint: data.inputMint,
@@ -265,6 +281,11 @@ export const getWalletHoldings = createServerFn({ method: "GET" })
 			throw new Error("API configuration error");
 		}
 
+		// Validate wallet address
+		if (!isAddress(data.walletAddress)) {
+			throw new Error(`Invalid wallet address: ${data.walletAddress}`);
+		}
+
 		try {
 			const response = await fetch(
 				`https://api.jup.ag/ultra/v1/holdings/${data.walletAddress}`,
@@ -295,10 +316,10 @@ export const getWalletHoldings = createServerFn({ method: "GET" })
 			const holdingsData: JupiterHoldingsResponse = await response.json();
 
 			// Sum amounts by mint address, using a Map to handle duplicate mints
-			const holdingsMap = new Map<string, bigint>();
+			const holdingsMap = new Map<Address, bigint>();
 
 			// Add native SOL balance
-			const solMint = "So11111111111111111111111111111111111111112";
+			const solMint = "So11111111111111111111111111111111111111112" as Address;
 			holdingsMap.set(solMint, BigInt(holdingsData.amount));
 
 			// Add token balances, summing if SOL mint already exists
@@ -311,8 +332,8 @@ export const getWalletHoldings = createServerFn({ method: "GET" })
 				}
 
 				// If this mint already exists (e.g., wrapped SOL), sum the amounts
-				const existingAmount = holdingsMap.get(mintAddress) ?? 0n;
-				holdingsMap.set(mintAddress, existingAmount + totalAmount);
+				const existingAmount = holdingsMap.get(mintAddress as Address) ?? 0n;
+				holdingsMap.set(mintAddress as Address, existingAmount + totalAmount);
 			}
 
 			// Convert Map to array

@@ -2,7 +2,12 @@ import { getBase64Codec } from "@solana/kit";
 import { useSignTransaction } from "@solana/react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { UiWalletAccount } from "@wallet-ui/react";
-import { ArrowRightLeft, Loader2 } from "lucide-react";
+import {
+	AlertCircle,
+	ArrowRightLeft,
+	CheckCircle2,
+	Loader2,
+} from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { executeSwap } from "@/lib/server-functions";
@@ -140,25 +145,36 @@ function SwapButtonInner({ account, transaction, requestId }: Props) {
 			</button>
 
 			{executionSuccess && (
-				<div className="w-full py-3 px-4 bg-green-900/20 border border-green-900/50 rounded-xl">
-					<p className="text-green-400 font-medium text-center">
-						✓ Swap successful!{" "}
-						<a
-							href={`https://explorer.solana.com/tx/${executionSuccess.signature}`}
-							target="_blank"
-							rel="noopener noreferrer"
-							className="underline hover:text-green-300"
-						>
-							View transaction
-						</a>
+				<output
+					className="w-full py-3 px-4 bg-green-900/20 border border-green-900/50 rounded-xl block"
+					aria-live="polite"
+				>
+					<p className="text-green-400 font-medium text-center flex items-center justify-center gap-2">
+						<CheckCircle2 className="w-5 h-5" aria-hidden="true" />
+						<span>
+							Swap successful!{" "}
+							<a
+								href={`https://explorer.solana.com/tx/${executionSuccess.signature}`}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="underline hover:text-green-300"
+							>
+								View transaction
+							</a>
+						</span>
 					</p>
-				</div>
+				</output>
 			)}
 
 			{executionError && (
-				<div className="w-full py-3 px-4 bg-red-900/20 border border-red-900/50 rounded-xl">
-					<p className="text-red-400 font-medium text-center">
-						⚠ {executionError}
+				<div
+					className="w-full py-3 px-4 bg-red-900/20 border border-red-900/50 rounded-xl"
+					role="alert"
+					aria-live="assertive"
+				>
+					<p className="text-red-400 font-medium text-center flex items-center justify-center gap-2">
+						<AlertCircle className="w-5 h-5" aria-hidden="true" />
+						<span>{executionError}</span>
 					</p>
 				</div>
 			)}

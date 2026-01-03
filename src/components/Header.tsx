@@ -33,12 +33,10 @@ export default function Header() {
 					to="/cost-basis"
 					className="font-medium px-3 py-2 rounded-lg transition-colors"
 					activeProps={{
-						className:
-							"font-medium px-3 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 transition-colors",
+						className: "bg-teal-600 hover:bg-teal-700",
 					}}
 					inactiveProps={{
-						className:
-							"font-medium px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors",
+						className: "hover:bg-gray-700",
 					}}
 				>
 					Cost Basis
