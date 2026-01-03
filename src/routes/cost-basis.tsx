@@ -2,6 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Search, Trash2 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import {
+	getCostBasisData,
+	type StoredCostBasis,
+	saveCostBasisData,
+} from "../lib/cost-basis";
 import { formatUSD } from "../lib/format";
 import { searchTokens } from "../lib/server-functions";
 import type { JupiterToken } from "../types/jupiter";
@@ -10,17 +15,7 @@ export const Route = createFileRoute("/cost-basis")({
 	component: CostBasisPage,
 });
 
-interface StoredCostBasis {
-	tokenAddress: string;
-	costBasisUSD: number;
-	tokenName: string;
-	tokenSymbol: string;
-	tokenLogo?: string;
-}
-
 type InputMode = "per-token" | "total";
-
-const COST_BASIS_STORAGE_KEY = "costBasisData";
 
 function useDebouncedValue<T>(value: T, delay: number): T {
 	const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -34,29 +29,6 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 	}, [value, delay]);
 
 	return debouncedValue;
-}
-
-// Helper functions for localStorage operations
-function getCostBasisData(): Record<string, StoredCostBasis> {
-	try {
-		console.log("Reading cost basis data from localStorage");
-		const data = localStorage.getItem(COST_BASIS_STORAGE_KEY);
-		console.log("Data read from localStorage:", data);
-		return data ? JSON.parse(data) : {};
-	} catch (error) {
-		console.error("Failed to read cost basis data:", error);
-		return {};
-	}
-}
-
-function saveCostBasisData(data: Record<string, StoredCostBasis>): boolean {
-	try {
-		localStorage.setItem(COST_BASIS_STORAGE_KEY, JSON.stringify(data));
-		return true;
-	} catch (error) {
-		console.error("Failed to save cost basis data:", error);
-		return false;
-	}
 }
 
 function CostBasisPage() {
@@ -80,7 +52,8 @@ function CostBasisPage() {
 	// Use TanStack Query for token search
 	const { data: searchResults = [], isFetching: isSearching } = useQuery({
 		queryKey: ["tokens", debouncedSearchQuery],
-		queryFn: ({ signal }) => searchTokens({ data: { query: debouncedSearchQuery }, signal }),
+		queryFn: ({ signal }) =>
+			searchTokens({ data: { query: debouncedSearchQuery }, signal }),
 		enabled: debouncedSearchQuery.trim().length > 0,
 		staleTime: 5 * 60 * 1000, // 5 minutes
 		placeholderData: (previousData, previousQuery) => {

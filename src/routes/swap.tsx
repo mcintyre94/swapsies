@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useWalletUiAccount, WalletUiDropdown } from "@wallet-ui/react";
 import { ArrowDownUp, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import SwapButton from "../components/SwapButton";
+import { getCostBasisForToken } from "../lib/cost-basis";
 import { formatNumber, formatTokenAmount, formatUSD } from "../lib/format";
 import {
 	getOrder,
@@ -207,6 +208,32 @@ function SwapPage() {
 		return amount / 10 ** outputToken.decimals;
 	}, [quote, outputToken]);
 
+	// Get cost basis data for input token
+	const inputTokenCostBasis = useMemo(() => {
+		if (!inputToken) return null;
+		return getCostBasisForToken(inputToken.address);
+	}, [inputToken]);
+
+	// Calculate cost basis metrics
+	const costBasisMetrics = useMemo(() => {
+		if (!inputTokenCostBasis || !quote || !debouncedAmount) return null;
+
+		const amountNum = Number.parseFloat(debouncedAmount);
+		if (Number.isNaN(amountNum) || amountNum <= 0) return null;
+
+		const costBasisPerToken = inputTokenCostBasis.costBasisUSD;
+		const totalCostBasis = costBasisPerToken * amountNum;
+		const realizedGainLoss = quote.inUsdValue - totalCostBasis;
+		const gainLossPercentage = (realizedGainLoss / totalCostBasis) * 100;
+
+		return {
+			costBasisPerToken,
+			totalCostBasis,
+			realizedGainLoss,
+			gainLossPercentage,
+		};
+	}, [inputTokenCostBasis, quote, debouncedAmount]);
+
 	return (
 		<div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white p-8">
 			<div className="max-w-2xl mx-auto">
@@ -401,6 +428,68 @@ function SwapPage() {
 											{formatUSD(quote.inUsdValue - quote.outUsdValue)}
 										</span>
 									</div>
+								</div>
+
+								{/* Cost Basis Section */}
+								<div className="pt-2 mt-2 border-t border-slate-600/50 space-y-2">
+									{inputTokenCostBasis && costBasisMetrics ? (
+										<>
+											<div className="flex justify-between">
+												<span className="text-slate-400">Cost Basis</span>
+												<span className="text-sm">
+													{formatUSD(costBasisMetrics.costBasisPerToken, 4)} per{" "}
+													{inputToken?.symbol}
+												</span>
+											</div>
+											<div className="flex justify-between">
+												<span className="text-slate-400">Total Cost Basis</span>
+												<span>
+													{formatUSD(costBasisMetrics.totalCostBasis)}
+												</span>
+											</div>
+											<div className="flex justify-between items-center">
+												<span className="text-slate-400">
+													Realized Gain/Loss
+												</span>
+												<div className="text-right">
+													<div
+														className={
+															costBasisMetrics.realizedGainLoss >= 0
+																? "text-green-400"
+																: "text-red-400"
+														}
+													>
+														{costBasisMetrics.realizedGainLoss >= 0 ? "+" : ""}
+														{formatUSD(costBasisMetrics.realizedGainLoss)}
+													</div>
+													<div
+														className={`text-xs ${
+															costBasisMetrics.realizedGainLoss >= 0
+																? "text-green-400/70"
+																: "text-red-400/70"
+														}`}
+													>
+														({costBasisMetrics.realizedGainLoss >= 0 ? "+" : ""}
+														{formatNumber(
+															costBasisMetrics.gainLossPercentage,
+															2,
+														)}
+														%)
+													</div>
+												</div>
+											</div>
+										</>
+									) : inputToken ? (
+										<div className="flex justify-between items-center">
+											<span className="text-slate-400">Cost Basis</span>
+											<Link
+												to="/cost-basis"
+												className="text-cyan-400 hover:text-cyan-300 transition-colors text-sm underline"
+											>
+												Add cost basis
+											</Link>
+										</div>
+									) : null}
 								</div>
 							</div>
 
