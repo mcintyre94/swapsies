@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Home, Menu, Network, SquareFunction, X } from "lucide-react";
+import { Home, Menu, Network, X } from "lucide-react";
 import { useState } from "react";
 
 export default function Header() {
@@ -56,19 +56,6 @@ export default function Header() {
 						}}
 					>
 						<Home size={20} />
-						<span className="font-medium">Home</span>
-					</Link>
-
-					<Link
-						to="/swap"
-						onClick={() => setIsOpen(false)}
-						className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2"
-						activeProps={{
-							className:
-								"flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2",
-						}}
-					>
-						<SquareFunction size={20} />
 						<span className="font-medium">Swap</span>
 					</Link>
 
