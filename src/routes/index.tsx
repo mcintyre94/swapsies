@@ -42,6 +42,7 @@ function SwapPage() {
 	const [selectMode, setSelectMode] = useState<TokenSelectMode>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
+	const [selectedTokenIndex, setSelectedTokenIndex] = useState(0);
 	const { account } = useWalletUiAccount();
 	const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,6 +50,7 @@ function SwapPage() {
 	const handleCloseModal = useCallback(() => {
 		setSelectMode(null);
 		setSearchQuery("");
+		setSelectedTokenIndex(0);
 	}, []);
 
 	// Auto-focus search input when modal opens
@@ -179,6 +181,31 @@ function SwapPage() {
 		}
 		setSelectMode(null);
 		setSearchQuery("");
+		setSelectedTokenIndex(0);
+	};
+
+	// Handle keyboard navigation in token list
+	const handleTokenListKeyDown = (event: React.KeyboardEvent) => {
+		if (displayedResults.length === 0) return;
+
+		switch (event.key) {
+			case "ArrowDown":
+				event.preventDefault();
+				setSelectedTokenIndex((prev) =>
+					prev < displayedResults.length - 1 ? prev + 1 : prev,
+				);
+				break;
+			case "ArrowUp":
+				event.preventDefault();
+				setSelectedTokenIndex((prev) => (prev > 0 ? prev - 1 : prev));
+				break;
+			case "Enter":
+				event.preventDefault();
+				if (displayedResults[selectedTokenIndex]) {
+					handleSelectToken(displayedResults[selectedTokenIndex]);
+				}
+				break;
+		}
 	};
 
 	const handleSwapTokens = () => {
@@ -588,7 +615,11 @@ function SwapPage() {
 									ref={searchInputRef}
 									type="text"
 									value={searchQuery}
-									onChange={(e) => setSearchQuery(e.target.value)}
+									onChange={(e) => {
+										setSearchQuery(e.target.value);
+										setSelectedTokenIndex(0);
+									}}
+									onKeyDown={handleTokenListKeyDown}
 									placeholder="Search for a token"
 									className="w-full pl-10 pr-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
 								/>
@@ -601,12 +632,16 @@ function SwapPage() {
 						</div>
 						<div className="overflow-y-auto flex-1">
 							{displayedResults.length > 0 ? (
-								displayedResults.map((token) => (
+								displayedResults.map((token, index) => (
 									<button
 										key={token.address}
 										type="button"
 										onClick={() => handleSelectToken(token)}
-										className="w-full flex items-center gap-3 p-4 hover:bg-slate-700 transition-colors text-left"
+										className={`w-full flex items-center gap-3 p-4 transition-colors text-left ${
+											index === selectedTokenIndex
+												? "bg-slate-700"
+												: "hover:bg-slate-700"
+										}`}
 									>
 										{token.logo && (
 											<img

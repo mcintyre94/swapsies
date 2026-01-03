@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Loader2, Search, Trash2 } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
 	getCostBasisData,
 	type StoredCostBasis,
@@ -37,6 +37,8 @@ function CostBasisPage() {
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 	const [selectedToken, setSelectedToken] = useState<JupiterToken | null>(null);
 	const [inputMode, setInputMode] = useState<InputMode>("per-token");
+	const [selectedTokenIndex, setSelectedTokenIndex] = useState(0);
+	const searchInputRef = useRef<HTMLInputElement>(null);
 
 	const [costBasisPerToken, setCostBasisPerToken] = useState("");
 	const [totalBalance, setTotalBalance] = useState("");
@@ -83,6 +85,31 @@ function CostBasisPage() {
 	const handleSelectToken = (token: JupiterToken) => {
 		setSelectedToken(token);
 		setSearchQuery("");
+		setSelectedTokenIndex(0);
+	};
+
+	// Handle keyboard navigation in token list
+	const handleTokenListKeyDown = (event: React.KeyboardEvent) => {
+		if (displayedResults.length === 0) return;
+
+		switch (event.key) {
+			case "ArrowDown":
+				event.preventDefault();
+				setSelectedTokenIndex((prev) =>
+					prev < displayedResults.length - 1 ? prev + 1 : prev,
+				);
+				break;
+			case "ArrowUp":
+				event.preventDefault();
+				setSelectedTokenIndex((prev) => (prev > 0 ? prev - 1 : prev));
+				break;
+			case "Enter":
+				event.preventDefault();
+				if (displayedResults[selectedTokenIndex]) {
+					handleSelectToken(displayedResults[selectedTokenIndex]);
+				}
+				break;
+		}
 	};
 
 	const handleModeChange = (mode: InputMode) => {
@@ -480,9 +507,14 @@ function CostBasisPage() {
 							<div className="relative">
 								<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
 								<input
+									ref={searchInputRef}
 									type="text"
 									value={searchQuery}
-									onChange={(e) => setSearchQuery(e.target.value)}
+									onChange={(e) => {
+										setSearchQuery(e.target.value);
+										setSelectedTokenIndex(0);
+									}}
+									onKeyDown={handleTokenListKeyDown}
 									placeholder="Search for a token (e.g., SOL, USDC)"
 									className="w-full pl-10 pr-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
 								/>
@@ -497,12 +529,16 @@ function CostBasisPage() {
 								debouncedSearchQuery.trim() && (
 									<div className="absolute z-10 w-full mt-2 bg-slate-700 rounded-lg shadow-lg max-h-80 overflow-y-auto">
 										{displayedResults.length > 0 ? (
-											displayedResults.map((token) => (
+											displayedResults.map((token, index) => (
 												<button
 													key={token.address}
 													type="button"
 													onClick={() => handleSelectToken(token)}
-													className="w-full flex items-center gap-3 p-3 hover:bg-slate-600 transition-colors text-left"
+													className={`w-full flex items-center gap-3 p-3 transition-colors text-left ${
+														index === selectedTokenIndex
+															? "bg-slate-600"
+															: "hover:bg-slate-600"
+													}`}
 												>
 													{token.logo && (
 														<img
