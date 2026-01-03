@@ -17,10 +17,13 @@ export default function Header() {
 			<nav className="flex items-center gap-6">
 				<Link
 					to="/"
-					className="font-medium px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+					className="font-medium px-3 py-2 rounded-lg transition-colors"
+					activeOptions={{ exact: true }}
 					activeProps={{
-						className:
-							"font-medium px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors",
+						className: "bg-teal-600 hover:bg-teal-700",
+					}}
+					inactiveProps={{
+						className: "hover:bg-gray-700",
 					}}
 				>
 					Swap
@@ -28,10 +31,14 @@ export default function Header() {
 
 				<Link
 					to="/cost-basis"
-					className="font-medium px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+					className="font-medium px-3 py-2 rounded-lg transition-colors"
 					activeProps={{
 						className:
-							"font-medium px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors",
+							"font-medium px-3 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 transition-colors",
+					}}
+					inactiveProps={{
+						className:
+							"font-medium px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors",
 					}}
 				>
 					Cost Basis
