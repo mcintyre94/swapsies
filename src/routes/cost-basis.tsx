@@ -80,7 +80,7 @@ function CostBasisPage() {
 	// Use TanStack Query for token search
 	const { data: searchResults = [], isFetching: isSearching } = useQuery({
 		queryKey: ["tokens", debouncedSearchQuery],
-		queryFn: () => searchTokens({ data: { query: debouncedSearchQuery } }),
+		queryFn: ({ signal }) => searchTokens({ data: { query: debouncedSearchQuery }, signal }),
 		enabled: debouncedSearchQuery.trim().length > 0,
 		staleTime: 5 * 60 * 1000, // 5 minutes
 		placeholderData: (previousData, previousQuery) => {

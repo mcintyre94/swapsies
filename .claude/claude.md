@@ -58,6 +58,43 @@ Swapsies is a Solana token swap application built with TanStack Start. It allows
 - Use controlled components with React state
 - Debounce search inputs (300ms typical)
 
+### Server Functions Best Practices
+
+**AbortSignal Support (Required)**
+
+All server functions MUST accept and use AbortSignal for request cancellation:
+
+```typescript
+export const myServerFn = createServerFn({ method: "GET" })
+    .inputValidator((input: MyInput) => input)
+    .handler(async ({ data, signal }): Promise<MyResponse> => {
+        // Always destructure 'signal' from handler params
+
+        const response = await fetch(url, {
+            headers: { /* ... */ },
+            signal,  // Always pass signal to fetch
+        });
+
+        return await response.json();
+    });
+```
+
+**Why:** Prevents wasted API requests when users navigate away or trigger new requests. Critical for rate-limited APIs like Jupiter.
+
+**React Query Integration**
+
+When calling server functions from React Query, always pass the signal:
+
+```typescript
+const { data } = useQuery({
+    queryKey: ["my-data", param],
+    queryFn: ({ signal }) => myServerFn({
+        data: { param },
+        signal  // Always pass signal
+    }),
+});
+```
+
 ## Common Patterns
 
 ### Token Search

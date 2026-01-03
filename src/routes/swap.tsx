@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useWalletUiAccount, WalletUiDropdown } from "@wallet-ui/react";
 import { ArrowDownUp, Search } from "lucide-react";
@@ -33,20 +33,31 @@ function useDebouncedValue<T>(value: T, delay: number): T {
 type TokenSelectMode = "input" | "output" | null;
 
 function SwapPage() {
+	const queryClient = useQueryClient();
 	const [inputToken, setInputToken] = useState<JupiterToken | null>(null);
 	const [outputToken, setOutputToken] = useState<JupiterToken | null>(null);
 	const [amount, setAmount] = useState("");
+	const debouncedAmount = useDebouncedValue(amount, 300);
 	const [selectMode, setSelectMode] = useState<TokenSelectMode>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 	const { account } = useWalletUiAccount();
 
+	// Cancel any pending order queries when the debounced amount changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally cancelling in-flight queries when amount changes
+	useEffect(() => {
+		queryClient.cancelQueries({ queryKey: ["order"] });
+	}, [debouncedAmount, queryClient]);
+
 	// Fetch wallet holdings
 	const { data: holdings = [] } = useQuery({
 		queryKey: ["holdings", account?.address],
-		queryFn: () =>
+		queryFn: ({ signal }) =>
 			account?.address
-				? getWalletHoldings({ data: { walletAddress: account.address } })
+				? getWalletHoldings({
+						data: { walletAddress: account.address },
+						signal,
+					})
 				: Promise.resolve([]),
 		enabled: !!account?.address,
 		staleTime: 30 * 1000, // Cache for 30 seconds
@@ -90,7 +101,8 @@ function SwapPage() {
 	// Load default tokens (top 2 from Jupiter)
 	const { data: defaultTokens } = useQuery({
 		queryKey: ["tokens", "", 2],
-		queryFn: () => searchTokens({ data: { query: "", limit: 2 } }),
+		queryFn: ({ signal }) =>
+			searchTokens({ data: { query: "", limit: 2 }, signal }),
 		staleTime: Number.POSITIVE_INFINITY, // Cache forever
 	});
 
@@ -110,7 +122,8 @@ function SwapPage() {
 	// Token search query
 	const { data: searchResults = [], isFetching: isSearching } = useQuery({
 		queryKey: ["tokens", debouncedSearchQuery],
-		queryFn: () => searchTokens({ data: { query: debouncedSearchQuery } }),
+		queryFn: ({ signal }) =>
+			searchTokens({ data: { query: debouncedSearchQuery }, signal }),
 		enabled: debouncedSearchQuery.trim().length > 0,
 		staleTime: 5 * 60 * 1000,
 		placeholderData: (previousData, previousQuery) => {
@@ -147,11 +160,11 @@ function SwapPage() {
 
 	// Calculate amount in native units (before decimals)
 	const nativeAmount = useMemo(() => {
-		if (!amount || !inputToken) return null;
-		const amountNum = Number.parseFloat(amount);
+		if (!debouncedAmount || !inputToken) return null;
+		const amountNum = Number.parseFloat(debouncedAmount);
 		if (Number.isNaN(amountNum) || amountNum <= 0) return null;
 		return Math.floor(amountNum * 10 ** inputToken.decimals).toString();
-	}, [amount, inputToken]);
+	}, [debouncedAmount, inputToken]);
 
 	// Fetch quote when inputs change
 	const {
@@ -166,7 +179,7 @@ function SwapPage() {
 			nativeAmount,
 			account?.address,
 		],
-		queryFn: () => {
+		queryFn: ({ signal }) => {
 			// These are guaranteed to exist because of the enabled check
 			if (!inputToken || !outputToken || !nativeAmount) {
 				throw new Error("Missing required parameters");
@@ -178,6 +191,7 @@ function SwapPage() {
 					amount: nativeAmount,
 					taker: account?.address,
 				},
+				signal,
 			});
 		},
 		enabled: !!(inputToken && outputToken && nativeAmount),
@@ -207,7 +221,7 @@ function SwapPage() {
 				<div className="bg-slate-800 rounded-lg p-6">
 					{/* Input Token */}
 					<div className="mb-4">
-						<div className="block text-sm font-medium mb-2">You Pay</div>
+						<div className="block text-sm font-medium mb-2">Swap your</div>
 						<div className="flex gap-2">
 							<button
 								type="button"
@@ -289,7 +303,7 @@ function SwapPage() {
 
 					{/* Output Token */}
 					<div className="mb-4">
-						<div className="block text-sm font-medium mb-2">You Receive</div>
+						<div className="block text-sm font-medium mb-2">To receive</div>
 						<div className="flex gap-2">
 							<button
 								type="button"
@@ -374,7 +388,7 @@ function SwapPage() {
 										<span>{formatUSD(quote.outUsdValue)}</span>
 									</div>
 									<div className="flex justify-between">
-										<span className="text-slate-400">Total Cost</span>
+										<span className="text-slate-400">Estimated Cost</span>
 										<span
 											className={
 												quote.outUsdValue >= quote.inUsdValue

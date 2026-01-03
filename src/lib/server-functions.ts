@@ -25,7 +25,7 @@ interface SearchTokensInput {
 
 export const searchTokens = createServerFn({ method: "GET" })
 	.inputValidator((input: SearchTokensInput) => input)
-	.handler(async ({ data }): Promise<JupiterToken[]> => {
+	.handler(async ({ data, signal }): Promise<JupiterToken[]> => {
 		const input = data;
 		const apiKey = process.env.JUPITER_API_KEY;
 
@@ -46,6 +46,7 @@ export const searchTokens = createServerFn({ method: "GET" })
 					headers: {
 						"x-api-key": apiKey,
 					},
+					signal,
 				},
 			);
 
@@ -83,13 +84,15 @@ interface GetOrderInput {
 
 export const getOrder = createServerFn({ method: "GET" })
 	.inputValidator((input: GetOrderInput) => input)
-	.handler(async ({ data }): Promise<JupiterOrderResponse> => {
+	.handler(async ({ data, signal }): Promise<JupiterOrderResponse> => {
 		const apiKey = process.env.JUPITER_API_KEY;
 
 		if (!apiKey) {
 			console.error("JUPITER_API_KEY environment variable is not set");
 			throw new Error("API configuration error");
 		}
+
+		console.log("signal aborted?", signal.aborted, signal.reason);
 
 		const params = new URLSearchParams({
 			inputMint: data.inputMint,
@@ -108,6 +111,7 @@ export const getOrder = createServerFn({ method: "GET" })
 					headers: {
 						"x-api-key": apiKey,
 					},
+					signal,
 				},
 			);
 
@@ -138,7 +142,10 @@ interface ExecuteSwapInput {
 export const executeSwap = createServerFn({ method: "POST" })
 	.inputValidator((input: ExecuteSwapInput) => input)
 	.handler(
-		async ({ data }): Promise<JupiterExecuteResponse | JupiterExecuteError> => {
+		async ({
+			data,
+			signal,
+		}): Promise<JupiterExecuteResponse | JupiterExecuteError> => {
 			const apiKey = process.env.JUPITER_API_KEY;
 
 			if (!apiKey) {
@@ -157,6 +164,7 @@ export const executeSwap = createServerFn({ method: "POST" })
 						signedTransaction: data.signedTransaction,
 						requestId: data.requestId,
 					}),
+					signal,
 				});
 
 				const responseData = await response.json();
@@ -184,7 +192,7 @@ interface GetWalletHoldingsInput {
 
 export const getWalletHoldings = createServerFn({ method: "GET" })
 	.inputValidator((input: GetWalletHoldingsInput) => input)
-	.handler(async ({ data }): Promise<WalletHolding[]> => {
+	.handler(async ({ data, signal }): Promise<WalletHolding[]> => {
 		const apiKey = process.env.JUPITER_API_KEY;
 
 		if (!apiKey) {
@@ -199,6 +207,7 @@ export const getWalletHoldings = createServerFn({ method: "GET" })
 					headers: {
 						"x-api-key": apiKey,
 					},
+					signal,
 				},
 			);
 
