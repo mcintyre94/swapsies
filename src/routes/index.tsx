@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useWalletUiAccount, WalletUiDropdown } from "@wallet-ui/react";
 import { ArrowDownUp, Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SwapButton from "../components/SwapButton";
 import { getCostBasisForToken } from "../lib/cost-basis";
 import { formatNumber, formatTokenAmount, formatUSD } from "../lib/format";
@@ -43,6 +43,34 @@ function SwapPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 	const { account } = useWalletUiAccount();
+	const searchInputRef = useRef<HTMLInputElement>(null);
+
+	// Modal close handler
+	const handleCloseModal = useCallback(() => {
+		setSelectMode(null);
+		setSearchQuery("");
+	}, []);
+
+	// Auto-focus search input when modal opens
+	useEffect(() => {
+		if (selectMode) {
+			searchInputRef.current?.focus();
+		}
+	}, [selectMode]);
+
+	// Handle Escape key to close modal
+	useEffect(() => {
+		if (!selectMode) return;
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === "Escape") {
+				handleCloseModal();
+			}
+		};
+
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [selectMode, handleCloseModal]);
 
 	// Cancel any pending order queries when the debounced amount changes
 	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally cancelling in-flight queries when amount changes
@@ -524,7 +552,22 @@ function SwapPage() {
 
 			{/* Token selection modal */}
 			{selectMode && (
-				<div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+				// biome-ignore lint/a11y/useSemanticElements: Modal overlay is not a semantic button - click-away is a common UX pattern
+				<div
+					className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+					onClick={(e) => {
+						if (e.target === e.currentTarget) {
+							handleCloseModal();
+						}
+					}}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" && e.target === e.currentTarget) {
+							handleCloseModal();
+						}
+					}}
+					role="button"
+					tabIndex={-1}
+				>
 					<div className="bg-slate-800 rounded-lg max-w-md w-full max-h-[80vh] flex flex-col">
 						<div className="p-4 border-b border-slate-700">
 							<div className="flex justify-between items-center mb-4">
@@ -533,10 +576,7 @@ function SwapPage() {
 								</h2>
 								<button
 									type="button"
-									onClick={() => {
-										setSelectMode(null);
-										setSearchQuery("");
-									}}
+									onClick={handleCloseModal}
 									className="text-slate-400 hover:text-white"
 								>
 									✕
@@ -545,6 +585,7 @@ function SwapPage() {
 							<div className="relative">
 								<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
 								<input
+									ref={searchInputRef}
 									type="text"
 									value={searchQuery}
 									onChange={(e) => setSearchQuery(e.target.value)}
