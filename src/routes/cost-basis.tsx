@@ -359,7 +359,7 @@ function CostBasisPage() {
 	};
 
 	return (
-		<div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white p-8">
+		<div className="min-h-screen p-8">
 			<div className="max-w-4xl mx-auto">
 				<div className="flex items-center justify-between mb-2">
 					<h1 className="text-4xl font-bold">Cost Basis</h1>

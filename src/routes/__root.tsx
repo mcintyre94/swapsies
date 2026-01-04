@@ -88,28 +88,30 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	);
 
 	return (
-		<html lang="en">
+		<html lang="en" className="h-full">
 			<head>
 				<HeadContent />
 			</head>
-			<body>
-				<QueryClientProvider client={queryClient}>
-					<WalletUi config={config}>
-						<Header />
-						{children}
-						<TanStackDevtools
-							config={{
-								position: "bottom-right",
-							}}
-							plugins={[
-								{
-									name: "Tanstack Router",
-									render: <TanStackRouterDevtoolsPanel />,
-								},
-							]}
-						/>
-					</WalletUi>
-				</QueryClientProvider>
+			<body className="h-full bg-slate-900 text-white">
+				<div className="min-h-full bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900">
+					<QueryClientProvider client={queryClient}>
+						<WalletUi config={config}>
+							<Header />
+							{children}
+							<TanStackDevtools
+								config={{
+									position: "bottom-right",
+								}}
+								plugins={[
+									{
+										name: "Tanstack Router",
+										render: <TanStackRouterDevtoolsPanel />,
+									},
+								]}
+							/>
+						</WalletUi>
+					</QueryClientProvider>
+				</div>
 				<Scripts />
 			</body>
 		</html>

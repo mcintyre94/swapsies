@@ -191,7 +191,7 @@ function SwapPage() {
 	}, [inputTokenCostBasis, quote, debouncedAmount]);
 
 	return (
-		<div className="min-h-screen bg-gradient-to-b from-slate-950 to-slate-900 text-white p-8">
+		<div className="min-h-screen p-8">
 			<div className="max-w-2xl mx-auto">
 				<div className="flex justify-between items-start mb-8">
 					<div>
