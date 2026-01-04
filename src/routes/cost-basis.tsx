@@ -7,9 +7,10 @@ import {
 	type StoredCostBasis,
 	saveCostBasisData,
 } from "../lib/cost-basis";
+import { generateCostBasisCSV, parseCostBasisCSV } from "../lib/csv";
 import { formatUSD } from "../lib/format";
 import { batchSearchTokens, searchTokens } from "../lib/server-functions";
-import { isNonNegativeNumber, validateAddresses } from "../lib/validation";
+import { validateAddresses } from "../lib/validation";
 import type { JupiterToken } from "../types/jupiter";
 
 export const Route = createFileRoute("/cost-basis")({
@@ -207,13 +208,13 @@ function CostBasisPage() {
 			minimalData[address] = entry.costBasisUSD;
 		}
 
-		const dataStr = JSON.stringify(minimalData, null, 2);
-		const blob = new Blob([dataStr], { type: "application/json" });
+		const csvContent = generateCostBasisCSV(minimalData);
+		const blob = new Blob([csvContent], { type: "text/csv" });
 		const url = URL.createObjectURL(blob);
 
 		const link = document.createElement("a");
 		link.href = url;
-		link.download = `cost-basis-${new Date().toISOString().split("T")[0]}.json`;
+		link.download = `cost-basis-${new Date().toISOString().split("T")[0]}.csv`;
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);
@@ -234,31 +235,12 @@ function CostBasisPage() {
 		reader.onload = async (e) => {
 			try {
 				const content = e.target?.result as string;
-				const importedData = JSON.parse(content);
 
-				// Validate basic structure
-				if (typeof importedData !== "object" || importedData === null) {
-					throw new Error("Invalid file format");
-				}
+				// Parse CSV content (includes validation of cost basis values)
+				const costBasisMap = parseCostBasisCSV(content);
 
-				// Extract mint addresses and cost basis values
-				const mintAddresses = Object.keys(importedData);
-
-				if (mintAddresses.length === 0) {
-					throw new Error("No cost basis entries found in file");
-				}
-
-				// Validate that all values are non-negative numbers (allows 0 for airdrops)
-				for (const [mint, value] of Object.entries(importedData)) {
-					if (typeof value !== "number") {
-						throw new Error(`Invalid cost basis value for token ${mint}`);
-					}
-					if (!isNonNegativeNumber(value)) {
-						throw new Error(
-							`Cost basis must be a non-negative number for token ${mint}`,
-						);
-					}
-				}
+				// Extract mint addresses
+				const mintAddresses = Object.keys(costBasisMap);
 
 				// Validate mint addresses are valid Solana addresses
 				const { valid: validAddresses, invalid: invalidAddresses } =
@@ -268,8 +250,6 @@ function CostBasisPage() {
 						`Invalid Solana addresses found: ${invalidAddresses.slice(0, 3).join(", ")}${invalidAddresses.length > 3 ? "..." : ""}`,
 					);
 				}
-
-				const costBasisMap: Record<string, number> = importedData;
 
 				setImportProgress({ current: 0, total: validAddresses.length });
 
@@ -394,7 +374,7 @@ function CostBasisPage() {
 							)}
 							<input
 								type="file"
-								accept=".json"
+								accept=".csv"
 								onChange={handleImport}
 								disabled={isImporting}
 								className="hidden"
