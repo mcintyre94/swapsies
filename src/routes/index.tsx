@@ -264,18 +264,14 @@ function SwapPage() {
 			return searchResults;
 		}
 
-		// Input mode with no search - show holdings
-		if (
-			selectMode === "input" &&
-			holdingsWithMetadata &&
-			holdingsWithMetadata.length > 0
-		) {
+		// No search - show holdings
+		if (holdingsWithMetadata && holdingsWithMetadata.length > 0) {
 			return holdingsWithMetadata.map((h) => h.token);
 		}
 
 		// Default: empty
 		return [];
-	}, [debouncedSearchQuery, searchResults, selectMode, holdingsWithMetadata]);
+	}, [debouncedSearchQuery, searchResults, holdingsWithMetadata]);
 
 	// Calculate display data for a token in the selection list
 	const getTokenDisplayData = useCallback(
@@ -825,8 +821,8 @@ function SwapPage() {
 												)}
 											</div>
 
-											{/* Right column: Gain/Loss (if available) */}
-											{gainLoss !== null && (
+											{/* Right column: Gain/Loss (if available, only for input token) */}
+											{selectMode === "input" && gainLoss !== null && (
 												<div className="text-right flex-shrink-0">
 													<div
 														className={`text-sm font-medium ${
