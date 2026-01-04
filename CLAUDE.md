@@ -32,6 +32,23 @@ Swapsies is a Solana token swap application built with TanStack Start. It allows
 - All buttons must have explicit `type` attribute (`type="button"` for non-submit buttons)
 - Never use array indices as React keys - use stable identifiers instead
 
+### Indentation and Whitespace
+
+**This codebase uses TABS for indentation**, not spaces. When using the Edit tool:
+- Always copy text exactly as shown in Read tool output (preserves actual whitespace)
+- The Read tool output shows line numbers, but actual file content starts AFTER the line number prefix
+- Biome will auto-format to tabs when you run `pnpm biome check --write .`
+
+**Troubleshooting Edit errors:**
+
+If you get "String to replace not found" errors, it's usually whitespace mismatches. Use `cat -A` to see exact characters:
+
+```bash
+sed -n 'START,ENDp' /path/to/file.tsx | cat -A
+```
+
+Where `^I` = tab, spaces show as spaces, and `$` = end of line.
+
 ## Architecture Patterns
 
 ### Server Functions vs API Routes
