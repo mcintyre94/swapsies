@@ -165,6 +165,47 @@ This results in:
 **Why use both `activeProps` and `inactiveProps`?**
 If you only use `activeProps`, both the base className hover and active hover classes will be present on active links, causing CSS specificity conflicts where the wrong hover color might apply.
 
+### Forms
+
+**Prefer using `<form>` elements for form-like interactions** where appropriate:
+
+When you have multiple inputs with a submit action, wrap them in a `<form>` element for better accessibility, semantic HTML, and standard keyboard interactions (Enter to submit).
+
+**Best practices:**
+- Use `<form onSubmit={handleSubmit}>` with `e.preventDefault()` to prevent page reload
+- Add `noValidate` if you handle validation yourself (rather than using browser validation)
+- Use `type="submit"` for submit buttons (not `type="button"` with `onClick`)
+- Use `type="button"` for non-submit buttons inside forms to prevent accidental submission
+- Prevent Enter key from submitting when it should do something else (e.g., selecting from dropdown):
+  ```typescript
+  case "Enter":
+    event.preventDefault(); // Prevents form submission
+    // ... handle Enter key action
+  ```
+
+**Example pattern (from cost-basis.tsx):**
+```tsx
+const handleFormSubmit = (e: React.FormEvent) => {
+  e.preventDefault(); // Prevent page reload
+  handleSave(); // Call existing save logic
+};
+
+return (
+  <form onSubmit={handleFormSubmit} noValidate>
+    {/* inputs */}
+    <button type="submit" disabled={!isValid}>
+      Save
+    </button>
+  </form>
+);
+```
+
+**Benefits:**
+- Better accessibility (screen readers, semantic structure)
+- Standard UX (Enter to submit in input fields)
+- Clear intent in code
+- Follows web standards
+
 ### Token Search
 
 ```typescript

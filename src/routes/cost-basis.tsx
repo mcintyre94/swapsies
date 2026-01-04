@@ -146,6 +146,11 @@ function CostBasisPage() {
 		return cost / balance;
 	}, [inputMode, costBasisPerToken, totalBalance, totalCost]);
 
+	const handleFormSubmit = (e: React.FormEvent) => {
+		e.preventDefault(); // Prevent page reload
+		handleSave(); // Call existing save logic
+	};
+
 	const handleSave = () => {
 		if (!selectedToken || calculatedCostBasis === null) return;
 
@@ -481,7 +486,7 @@ function CostBasisPage() {
 												</div>
 											</td>
 											<td className="py-3 px-2 text-right font-mono">
-												{formatUSD(entry.costBasisUSD, 6)}
+												{formatUSD(entry.costBasisUSD, 8)}
 											</td>
 											<td className="py-3 px-2 text-right">
 												<button
@@ -503,217 +508,218 @@ function CostBasisPage() {
 
 				<h2 className="text-2xl font-semibold mb-4">Add New</h2>
 
-				<div className="bg-slate-800 rounded-lg p-6 mb-6">
-					<div className="block text-sm font-medium mb-2">Select Token</div>
-
-					{selectedToken ? (
-						<div className="flex items-center gap-3 p-4 bg-slate-700 rounded-lg">
-							{selectedToken.logo && (
-								<img
-									src={selectedToken.logo}
-									alt={selectedToken.symbol}
-									className="w-10 h-10 rounded-full"
-								/>
-							)}
-							<div className="flex-1">
-								<div className="font-semibold">{selectedToken.name}</div>
-								<div className="text-sm text-slate-400">
-									{selectedToken.symbol}
-								</div>
-							</div>
-							<button
-								type="button"
-								onClick={() => setSelectedToken(null)}
-								className="text-slate-400 hover:text-white"
-							>
-								Change
-							</button>
-						</div>
-					) : (
-						<div className="relative">
-							<div className="relative">
-								<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-								<input
-									ref={searchInputRef}
-									type="text"
-									value={searchQuery}
-									onChange={(e) => {
-										setSearchQuery(e.target.value);
-										setSelectedTokenIndex(0);
-									}}
-									onKeyDown={handleTokenListKeyDown}
-									placeholder="Search for a token (e.g., SOL, USDC)"
-									className="w-full pl-10 pr-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-								/>
-								{isSearching && (
-									<div className="absolute right-3 top-1/2 -translate-y-1/2">
-										<div className="w-5 h-5 border-2 border-slate-400 border-t-cyan-400 rounded-full animate-spin" />
-									</div>
-								)}
-							</div>
-
-							{(displayedResults.length > 0 || isSearching) &&
-								debouncedSearchQuery.trim() && (
-									<div className="absolute z-10 w-full mt-2 bg-slate-700 rounded-lg shadow-lg max-h-80 overflow-y-auto">
-										{displayedResults.length > 0 ? (
-											displayedResults.map((token, index) => (
-												<button
-													key={token.address}
-													type="button"
-													onClick={() => handleSelectToken(token)}
-													className={`w-full flex items-center gap-3 p-3 transition-colors text-left ${
-														index === selectedTokenIndex
-															? "bg-slate-600"
-															: "hover:bg-slate-600"
-													}`}
-												>
-													{token.logo && (
-														<img
-															src={token.logo}
-															alt={token.symbol}
-															className="w-8 h-8 rounded-full"
-														/>
-													)}
-													<div className="flex-1 min-w-0">
-														<div className="flex items-center gap-2">
-															<span className="font-semibold">
-																{token.symbol}
-															</span>
-															{token.isVerified && (
-																<span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded">
-																	Verified
-																</span>
-															)}
-														</div>
-														<div className="text-sm text-slate-400 truncate">
-															{token.name}
-														</div>
-													</div>
-												</button>
-											))
-										) : isSearching ? (
-											<div className="p-4 text-center text-slate-400">
-												Searching...
-											</div>
-										) : null}
-									</div>
-								)}
-						</div>
-					)}
-				</div>
-
-				{selectedToken && (
+				<form onSubmit={handleFormSubmit} noValidate>
 					<div className="bg-slate-800 rounded-lg p-6 mb-6">
-						<div className="block text-sm font-medium mb-4">
-							Enter Cost Basis
-						</div>
+						<div className="block text-sm font-medium mb-2">Select Token</div>
 
-						<div className="flex gap-2 mb-6">
-							<button
-								type="button"
-								onClick={() => handleModeChange("per-token")}
-								className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-									inputMode === "per-token"
-										? "bg-cyan-500 text-white"
-										: "bg-slate-700 text-slate-400 hover:text-white"
-								}`}
-							>
-								Cost Per Token
-							</button>
-							<button
-								type="button"
-								onClick={() => handleModeChange("total")}
-								className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-									inputMode === "total"
-										? "bg-cyan-500 text-white"
-										: "bg-slate-700 text-slate-400 hover:text-white"
-								}`}
-							>
-								Total Balance + Cost
-							</button>
-						</div>
-
-						{inputMode === "per-token" ? (
-							<div>
-								<label
-									htmlFor="cost-basis-input"
-									className="block text-sm text-slate-400 mb-2"
+						{selectedToken ? (
+							<div className="flex items-center gap-3 p-4 bg-slate-700 rounded-lg">
+								{selectedToken.logo && (
+									<img
+										src={selectedToken.logo}
+										alt={selectedToken.symbol}
+										className="w-10 h-10 rounded-full"
+									/>
+								)}
+								<div className="flex-1">
+									<div className="font-semibold">{selectedToken.name}</div>
+									<div className="text-sm text-slate-400">
+										{selectedToken.symbol}
+									</div>
+								</div>
+								<button
+									type="button"
+									onClick={() => setSelectedToken(null)}
+									className="text-slate-400 hover:text-white"
 								>
-									Cost Basis Per Token (USD)
-								</label>
-								<input
-									id="cost-basis-input"
-									type="number"
-									step="any"
-									value={costBasisPerToken}
-									onChange={(e) => setCostBasisPerToken(e.target.value)}
-									onWheel={(e) => e.currentTarget.blur()}
-									placeholder="0.00"
-									className="w-full px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-								/>
+									Change
+								</button>
 							</div>
 						) : (
-							<div className="space-y-4">
-								<div>
-									<label
-										htmlFor="total-balance-input"
-										className="block text-sm text-slate-400 mb-2"
-									>
-										Total Balance ({selectedToken.symbol})
-									</label>
+							<div className="relative">
+								<div className="relative">
+									<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
 									<input
-										id="total-balance-input"
-										type="number"
-										step="any"
-										value={totalBalance}
-										onChange={(e) => setTotalBalance(e.target.value)}
-										onWheel={(e) => e.currentTarget.blur()}
-										placeholder="0.00"
-										className="w-full px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+										ref={searchInputRef}
+										type="text"
+										value={searchQuery}
+										onChange={(e) => {
+											setSearchQuery(e.target.value);
+											setSelectedTokenIndex(0);
+										}}
+										onKeyDown={handleTokenListKeyDown}
+										placeholder="Search for a token (e.g., SOL, USDC)"
+										className="w-full pl-10 pr-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
 									/>
+									{isSearching && (
+										<div className="absolute right-3 top-1/2 -translate-y-1/2">
+											<div className="w-5 h-5 border-2 border-slate-400 border-t-cyan-400 rounded-full animate-spin" />
+										</div>
+									)}
 								</div>
-								<div>
-									<label
-										htmlFor="total-cost-input"
-										className="block text-sm text-slate-400 mb-2"
-									>
-										Total Cost (USD)
-									</label>
-									<input
-										id="total-cost-input"
-										type="number"
-										step="any"
-										value={totalCost}
-										onChange={(e) => setTotalCost(e.target.value)}
-										onWheel={(e) => e.currentTarget.blur()}
-										placeholder="0.00"
-										className="w-full px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
-									/>
-								</div>
-							</div>
-						)}
 
-						{calculatedCostBasis !== null && (
-							<div className="mt-4 p-4 bg-slate-700 rounded-lg">
-								<div className="text-sm text-slate-400 mb-1">
-									Cost Basis Per Token
-								</div>
-								<div className="text-2xl font-bold text-cyan-400">
-									{formatUSD(calculatedCostBasis, 6)}
-								</div>
+								{(displayedResults.length > 0 || isSearching) &&
+									debouncedSearchQuery.trim() && (
+										<div className="absolute z-10 w-full mt-2 bg-slate-700 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+											{displayedResults.length > 0 ? (
+												displayedResults.map((token, index) => (
+													<button
+														key={token.address}
+														type="button"
+														onClick={() => handleSelectToken(token)}
+														className={`w-full flex items-center gap-3 p-3 transition-colors text-left ${
+															index === selectedTokenIndex
+																? "bg-slate-600"
+																: "hover:bg-slate-600"
+														}`}
+													>
+														{token.logo && (
+															<img
+																src={token.logo}
+																alt={token.symbol}
+																className="w-8 h-8 rounded-full"
+															/>
+														)}
+														<div className="flex-1 min-w-0">
+															<div className="flex items-center gap-2">
+																<span className="font-semibold">
+																	{token.symbol}
+																</span>
+																{token.isVerified && (
+																	<span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded">
+																		Verified
+																	</span>
+																)}
+															</div>
+															<div className="text-sm text-slate-400 truncate">
+																{token.name}
+															</div>
+														</div>
+													</button>
+												))
+											) : isSearching ? (
+												<div className="p-4 text-center text-slate-400">
+													Searching...
+												</div>
+											) : null}
+										</div>
+									)}
 							</div>
 						)}
 					</div>
-				)}
 
-				<button
-					type="button"
-					onClick={handleSave}
-					disabled={!selectedToken || calculatedCostBasis === null}
-					className="w-full py-4 bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
-				>
-					Save Cost Basis
-				</button>
+					{selectedToken && (
+						<div className="bg-slate-800 rounded-lg p-6 mb-6">
+							<div className="block text-sm font-medium mb-4">
+								Enter Cost Basis
+							</div>
+
+							<div className="flex gap-2 mb-6">
+								<button
+									type="button"
+									onClick={() => handleModeChange("per-token")}
+									className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+										inputMode === "per-token"
+											? "bg-cyan-500 text-white"
+											: "bg-slate-700 text-slate-400 hover:text-white"
+									}`}
+								>
+									Cost Per Token
+								</button>
+								<button
+									type="button"
+									onClick={() => handleModeChange("total")}
+									className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+										inputMode === "total"
+											? "bg-cyan-500 text-white"
+											: "bg-slate-700 text-slate-400 hover:text-white"
+									}`}
+								>
+									Total Balance + Cost
+								</button>
+							</div>
+
+							{inputMode === "per-token" ? (
+								<div>
+									<label
+										htmlFor="cost-basis-input"
+										className="block text-sm text-slate-400 mb-2"
+									>
+										Cost Basis Per Token (USD)
+									</label>
+									<input
+										id="cost-basis-input"
+										type="number"
+										step="any"
+										value={costBasisPerToken}
+										onChange={(e) => setCostBasisPerToken(e.target.value)}
+										onWheel={(e) => e.currentTarget.blur()}
+										placeholder="0.00"
+										className="w-full px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+									/>
+								</div>
+							) : (
+								<div className="space-y-4">
+									<div>
+										<label
+											htmlFor="total-balance-input"
+											className="block text-sm text-slate-400 mb-2"
+										>
+											Total Balance ({selectedToken.symbol})
+										</label>
+										<input
+											id="total-balance-input"
+											type="number"
+											step="any"
+											value={totalBalance}
+											onChange={(e) => setTotalBalance(e.target.value)}
+											onWheel={(e) => e.currentTarget.blur()}
+											placeholder="0.00"
+											className="w-full px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+										/>
+									</div>
+									<div>
+										<label
+											htmlFor="total-cost-input"
+											className="block text-sm text-slate-400 mb-2"
+										>
+											Total Cost (USD)
+										</label>
+										<input
+											id="total-cost-input"
+											type="number"
+											step="any"
+											value={totalCost}
+											onChange={(e) => setTotalCost(e.target.value)}
+											onWheel={(e) => e.currentTarget.blur()}
+											placeholder="0.00"
+											className="w-full px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+										/>
+									</div>
+								</div>
+							)}
+
+							{calculatedCostBasis !== null && (
+								<div className="mt-4 p-4 bg-slate-700 rounded-lg">
+									<div className="text-sm text-slate-400 mb-1">
+										Cost Basis Per Token
+									</div>
+									<div className="text-2xl font-bold text-cyan-400">
+										{formatUSD(calculatedCostBasis, 6)}
+									</div>
+								</div>
+							)}
+						</div>
+					)}
+
+					<button
+						type="submit"
+						disabled={!selectedToken || calculatedCostBasis === null}
+						className="w-full py-4 bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
+					>
+						Save Cost Basis
+					</button>
+				</form>
 			</div>
 		</div>
 	);
