@@ -18,6 +18,7 @@ interface JupiterTokenResponse {
 	decimals: number;
 	tags?: string[];
 	isVerified?: boolean;
+	usdPrice?: number;
 }
 
 interface SearchTokensInput {
@@ -70,6 +71,7 @@ export const searchTokens = createServerFn({ method: "GET" })
 				decimals: token.decimals,
 				tags: token.tags,
 				isVerified: token.isVerified,
+				usdPrice: token.usdPrice,
 			}));
 		} catch (error) {
 			console.error("Error fetching tokens:", error);

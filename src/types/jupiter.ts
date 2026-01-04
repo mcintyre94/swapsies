@@ -10,6 +10,7 @@ export interface JupiterToken {
 	decimals: number;
 	tags?: string[];
 	isVerified?: boolean;
+	usdPrice?: number;
 }
 
 export interface JupiterOrderResponse {

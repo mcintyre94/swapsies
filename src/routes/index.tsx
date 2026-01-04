@@ -116,6 +116,15 @@ function SwapPage() {
 		staleTime: 30 * 1000, // Cache for 30 seconds
 	});
 
+	// Create a lookup map for fast balance retrieval
+	const holdingsMap = useMemo(() => {
+		const map = new Map();
+		for (const holding of holdings) {
+			map.set(holding.mintAddress, holding.amount);
+		}
+		return map;
+	}, [holdings]);
+
 	// Get balance for selected input token
 	const inputTokenBalance = useMemo(() => {
 		if (!inputToken || holdings.length === 0) return null;
@@ -194,6 +203,35 @@ function SwapPage() {
 
 	const displayedResults =
 		debouncedSearchQuery.trim().length > 0 ? searchResults : [];
+
+	// Calculate display data for a token in the selection list
+	const getTokenDisplayData = useCallback(
+		(token: JupiterToken) => {
+			// Get balance if available
+			const nativeBalance = holdingsMap.get(token.address);
+			const balance =
+				nativeBalance !== undefined
+					? Number(nativeBalance) / 10 ** token.decimals
+					: null;
+
+			// Get cost basis if available (only check if we have balance)
+			const costBasis =
+				balance !== null && balance > 0
+					? getCostBasisForToken(token.address)
+					: null;
+
+			// Calculate gain/loss if we have all required data
+			let gainLoss: number | null = null;
+			if (balance !== null && balance > 0 && costBasis && token.usdPrice) {
+				const currentValue = token.usdPrice * balance;
+				const costBasisValue = costBasis.costBasisUSD * balance;
+				gainLoss = currentValue - costBasisValue;
+			}
+
+			return { balance, costBasis, gainLoss };
+		},
+		[holdingsMap],
+	);
 
 	const handleSelectToken = (token: JupiterToken) => {
 		if (selectMode === "input") {
@@ -656,39 +694,70 @@ function SwapPage() {
 						</div>
 						<div className="overflow-y-auto flex-1">
 							{displayedResults.length > 0 ? (
-								displayedResults.map((token, index) => (
-									<button
-										key={token.address}
-										type="button"
-										onClick={() => handleSelectToken(token)}
-										className={`w-full flex items-center gap-3 p-4 transition-colors text-left ${
-											index === selectedTokenIndex
-												? "bg-slate-700"
-												: "hover:bg-slate-700"
-										}`}
-									>
-										{token.logo && (
-											<img
-												src={token.logo}
-												alt={token.symbol}
-												className="w-10 h-10 rounded-full"
-											/>
-										)}
-										<div className="flex-1 min-w-0">
-											<div className="flex items-center gap-2">
-												<span className="font-semibold">{token.symbol}</span>
-												{token.isVerified && (
-													<span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded">
-														Verified
-													</span>
+								displayedResults.map((token, index) => {
+									const { balance, gainLoss } = getTokenDisplayData(token);
+
+									return (
+										<button
+											key={token.address}
+											type="button"
+											onClick={() => handleSelectToken(token)}
+											className={`w-full flex items-center gap-3 p-4 transition-colors text-left ${
+												index === selectedTokenIndex
+													? "bg-slate-700"
+													: "hover:bg-slate-700"
+											}`}
+										>
+											{token.logo && (
+												<img
+													src={token.logo}
+													alt={token.symbol}
+													className="w-10 h-10 rounded-full flex-shrink-0"
+												/>
+											)}
+											<div className="flex-1 min-w-0">
+												{/* Top row: Symbol and verified badge */}
+												<div className="flex items-center gap-2 mb-1">
+													<span className="font-semibold">{token.symbol}</span>
+													{token.isVerified && (
+														<span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded">
+															Verified
+														</span>
+													)}
+												</div>
+
+												{/* Second row: Token name */}
+												<div className="text-sm text-slate-400 truncate mb-1">
+													{token.name}
+												</div>
+
+												{/* Third row: Balance (if wallet connected and has balance) */}
+												{balance !== null && balance > 0 && (
+													<div className="text-sm text-slate-300">
+														Balance: {formatTokenAmount(balance)}
+													</div>
 												)}
 											</div>
-											<div className="text-sm text-slate-400 truncate">
-												{token.name}
-											</div>
-										</div>
-									</button>
-								))
+
+											{/* Right column: Gain/Loss (if available) */}
+											{gainLoss !== null && (
+												<div className="text-right flex-shrink-0">
+													<div
+														className={`text-sm font-medium ${
+															gainLoss >= 0 ? "text-green-400" : "text-red-400"
+														}`}
+													>
+														{gainLoss >= 0 ? "+" : ""}
+														{formatUSD(gainLoss)}
+													</div>
+													<div className="text-xs text-slate-400">
+														Est max P/L
+													</div>
+												</div>
+											)}
+										</button>
+									);
+								})
 							) : isSearching ? (
 								<div className="p-8 text-center text-slate-400">
 									Searching...
