@@ -49,6 +49,7 @@ function SwapPage() {
 	const inputTokenButtonRef = useRef<HTMLButtonElement>(null);
 	const outputTokenButtonRef = useRef<HTMLButtonElement>(null);
 	const prevSelectModeRef = useRef<TokenSelectMode>(null);
+	const selectedTokenRef = useRef<HTMLButtonElement>(null);
 
 	// Modal close handler
 	const handleCloseModal = useCallback(() => {
@@ -97,6 +98,17 @@ function SwapPage() {
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [selectMode, handleCloseModal]);
+
+	// Scroll selected token into view when navigating with keyboard
+	// biome-ignore lint/correctness/useExhaustiveDependencies: need to scroll when selectedTokenIndex changes
+	useEffect(() => {
+		if (selectMode && selectedTokenRef.current) {
+			selectedTokenRef.current.scrollIntoView({
+				block: "nearest",
+				behavior: "smooth",
+			});
+		}
+	}, [selectedTokenIndex, selectMode]);
 
 	// Cancel any pending order queries when the debounced amount changes
 	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally cancelling in-flight queries when amount changes
@@ -776,6 +788,9 @@ function SwapPage() {
 									return (
 										<button
 											key={token.address}
+											ref={
+												index === selectedTokenIndex ? selectedTokenRef : null
+											}
 											type="button"
 											onClick={() => handleSelectToken(token)}
 											className={`w-full flex items-center gap-3 p-4 transition-colors text-left ${
