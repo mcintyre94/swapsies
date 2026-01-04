@@ -466,7 +466,7 @@ function CostBasisPage() {
 												</div>
 											</td>
 											<td className="py-3 px-2 text-right font-mono">
-												{formatUSD(entry.costBasisUSD, 8)}
+												{formatUSD(entry.costBasisUSD, 6)}
 											</td>
 											<td className="py-3 px-2 text-right">
 												<button
