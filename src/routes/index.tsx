@@ -45,6 +45,9 @@ function SwapPage() {
 	const [selectedTokenIndex, setSelectedTokenIndex] = useState(0);
 	const { account } = useWalletUiAccount();
 	const searchInputRef = useRef<HTMLInputElement>(null);
+	const inputTokenButtonRef = useRef<HTMLButtonElement>(null);
+	const outputTokenButtonRef = useRef<HTMLButtonElement>(null);
+	const prevSelectModeRef = useRef<TokenSelectMode>(null);
 
 	// Modal close handler
 	const handleCloseModal = useCallback(() => {
@@ -58,6 +61,25 @@ function SwapPage() {
 		if (selectMode) {
 			searchInputRef.current?.focus();
 		}
+	}, [selectMode]);
+
+	// Restore focus to token button when modal closes
+	useEffect(() => {
+		const prevMode = prevSelectModeRef.current;
+
+		// Detect modal close (transition from input/output to null)
+		if (prevMode && !selectMode) {
+			// Small delay to ensure DOM has updated
+			setTimeout(() => {
+				if (prevMode === "input") {
+					inputTokenButtonRef.current?.focus();
+				} else if (prevMode === "output") {
+					outputTokenButtonRef.current?.focus();
+				}
+			}, 0);
+		}
+
+		prevSelectModeRef.current = selectMode;
 	}, [selectMode]);
 
 	// Handle Escape key to close modal
@@ -306,6 +328,7 @@ function SwapPage() {
 						<div className="block text-sm font-medium mb-2">Swap your</div>
 						<div className="flex gap-2">
 							<button
+								ref={inputTokenButtonRef}
 								type="button"
 								onClick={() => setSelectMode("input")}
 								className="flex items-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors min-w-[140px]"
@@ -388,6 +411,7 @@ function SwapPage() {
 						<div className="block text-sm font-medium mb-2">To receive</div>
 						<div className="flex gap-2">
 							<button
+								ref={outputTokenButtonRef}
 								type="button"
 								onClick={() => setSelectMode("output")}
 								className="flex items-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors min-w-[140px]"
