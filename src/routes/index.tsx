@@ -7,6 +7,7 @@ import SwapButton from "../components/SwapButton";
 import { getCostBasisForToken } from "../lib/cost-basis";
 import { formatNumber, formatTokenAmount, formatUSD } from "../lib/format";
 import {
+	batchSearchTokens,
 	getOrder,
 	getWalletHoldings,
 	searchTokens,
@@ -54,7 +55,8 @@ function SwapPage() {
 		setSelectMode(null);
 		setSearchQuery("");
 		setSelectedTokenIndex(0);
-	}, []);
+		queryClient.cancelQueries({ queryKey: ["holdings-metadata"] });
+	}, [queryClient]);
 
 	// Auto-focus search input when modal opens
 	useEffect(() => {
@@ -124,6 +126,61 @@ function SwapPage() {
 		}
 		return map;
 	}, [holdings]);
+
+	// Fetch metadata for wallet holdings to display when search is empty
+	const holdingMintAddresses = useMemo(
+		() => holdings.map((h) => h.mintAddress),
+		[holdings],
+	);
+
+	const { data: holdingsWithMetadata = [], isLoading: isLoadingHoldings } =
+		useQuery({
+			queryKey: ["holdings-metadata", account?.address, holdingMintAddresses],
+			queryFn: async ({ signal }) => {
+				// Filter non-zero holdings
+				const nonZeroHoldings = holdings.filter((h) => h.amount > 0n);
+
+				if (nonZeroHoldings.length === 0) return [];
+
+				// Extract mint addresses (limit to 100 for Jupiter API)
+				const mintAddresses = nonZeroHoldings
+					.map((h) => h.mintAddress)
+					.slice(0, 100);
+
+				// Fetch metadata
+				const tokens = await batchSearchTokens({
+					data: { mintAddresses },
+					signal,
+				});
+
+				// Enrich with holding data and calculate USD values
+				const enriched = tokens
+					.map((token) => {
+						const holding = nonZeroHoldings.find(
+							(h) => h.mintAddress === token.address,
+						);
+						if (!holding) return null;
+
+						const balance = Number(holding.amount) / 10 ** token.decimals;
+						const usdValue = token.usdPrice ? token.usdPrice * balance : 0;
+
+						return {
+							token,
+							balance,
+							usdValue,
+						};
+					})
+					.filter((item): item is NonNullable<typeof item> => item !== null);
+
+				// Sort by USD value descending
+				enriched.sort((a, b) => b.usdValue - a.usdValue);
+
+				// Return top 20
+				return enriched.slice(0, 20);
+			},
+			enabled: !!account?.address && holdings.length > 0,
+			staleTime: 30 * 1000, // 30 seconds to match holdings cache
+		});
 
 	// Get balance for selected input token
 	const inputTokenBalance = useMemo(() => {
@@ -201,8 +258,24 @@ function SwapPage() {
 		},
 	});
 
-	const displayedResults =
-		debouncedSearchQuery.trim().length > 0 ? searchResults : [];
+	const displayedResults = useMemo(() => {
+		// Search is active - show search results
+		if (debouncedSearchQuery.trim().length > 0) {
+			return searchResults;
+		}
+
+		// Input mode with no search - show holdings
+		if (
+			selectMode === "input" &&
+			holdingsWithMetadata &&
+			holdingsWithMetadata.length > 0
+		) {
+			return holdingsWithMetadata.map((h) => h.token);
+		}
+
+		// Default: empty
+		return [];
+	}, [debouncedSearchQuery, searchResults, selectMode, holdingsWithMetadata]);
 
 	// Calculate display data for a token in the selection list
 	const getTokenDisplayData = useCallback(
@@ -758,13 +831,26 @@ function SwapPage() {
 										</button>
 									);
 								})
-							) : isSearching ? (
+							) : isSearching || isLoadingHoldings ? (
 								<div className="p-8 text-center text-slate-400">
-									Searching...
+									<div className="flex flex-col items-center gap-3">
+										<div className="w-8 h-8 border-2 border-slate-400 border-t-cyan-400 rounded-full animate-spin" />
+										<span>
+											{isSearching
+												? "Searching..."
+												: "Loading your holdings..."}
+										</span>
+									</div>
 								</div>
 							) : debouncedSearchQuery.trim() ? (
 								<div className="p-8 text-center text-slate-400">
 									No tokens found
+								</div>
+							) : selectMode === "input" && account ? (
+								<div className="p-8 text-center text-slate-400">
+									{holdings.length === 0
+										? "No holdings found. Search for a token to get started."
+										: "No significant holdings found. Try searching for a token."}
 								</div>
 							) : (
 								<div className="p-8 text-center text-slate-400">

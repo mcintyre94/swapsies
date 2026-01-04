@@ -145,6 +145,7 @@ export const batchSearchTokens = createServerFn({ method: "GET" })
 				decimals: token.decimals,
 				tags: token.tags,
 				isVerified: token.isVerified,
+				usdPrice: token.usdPrice,
 			}));
 		} catch (error) {
 			console.error("Error fetching tokens:", error);
