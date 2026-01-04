@@ -21,6 +21,13 @@ function countLeadingZeros(value: number): number {
 	if (value >= 1 || value === 0) return 0;
 
 	const str = value.toString();
+
+	// Handle scientific notation (e.g., "4e-7")
+	if (str.includes("e-")) {
+		const [, exponent] = str.split("e-");
+		return Number.parseInt(exponent, 10) - 1;
+	}
+
 	const match = str.match(/^0\.0+/);
 	if (!match) return 0;
 
