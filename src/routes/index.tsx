@@ -196,7 +196,6 @@ function SwapPage() {
 				<div className="flex justify-between items-start mb-8">
 					<div>
 						<h1 className="text-4xl font-bold mb-2">Swap</h1>
-						<p className="text-slate-400">Exchange tokens on Solana</p>
 					</div>
 					<WalletUiDropdown />
 				</div>
@@ -317,15 +316,15 @@ function SwapPage() {
 										<span>Select token</span>
 									)}
 								</button>
-								<div className="flex-1 px-4 py-3 bg-slate-700 rounded-lg text-slate-400">
+								<div className="flex-1 flex items-center text-lg">
 									{isLoadingQuote ? (
-										<span>Loading...</span>
+										<span className="text-slate-400">Loading...</span>
 									) : outputAmount !== null ? (
 										<span className="text-white">
-											{outputAmount.toFixed(6)}
+											{formatTokenAmount(outputAmount)}
 										</span>
 									) : (
-										<span>0.00</span>
+										<span className="text-slate-400">0.00</span>
 									)}
 								</div>
 							</div>
