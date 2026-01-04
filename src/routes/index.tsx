@@ -287,6 +287,12 @@ function SwapPage() {
 					? Number(nativeBalance) / 10 ** token.decimals
 					: null;
 
+			// Calculate USD value if we have balance and price
+			const usdValue =
+				balance !== null && balance > 0 && token.usdPrice
+					? token.usdPrice * balance
+					: null;
+
 			// Get cost basis if available (only check if we have balance)
 			const costBasis =
 				balance !== null && balance > 0
@@ -301,7 +307,7 @@ function SwapPage() {
 				gainLoss = currentValue - costBasisValue;
 			}
 
-			return { balance, costBasis, gainLoss };
+			return { balance, usdValue, costBasis, gainLoss };
 		},
 		[holdingsMap],
 	);
@@ -768,7 +774,8 @@ function SwapPage() {
 						<div className="overflow-y-auto flex-1">
 							{displayedResults.length > 0 ? (
 								displayedResults.map((token, index) => {
-									const { balance, gainLoss } = getTokenDisplayData(token);
+									const { balance, usdValue, gainLoss } =
+										getTokenDisplayData(token);
 
 									return (
 										<button
@@ -808,6 +815,12 @@ function SwapPage() {
 												{balance !== null && balance > 0 && (
 													<div className="text-sm text-slate-300">
 														Balance: {formatTokenAmount(balance)}
+														{usdValue !== null && (
+															<span className="text-slate-400">
+																{" "}
+																({formatUSD(usdValue)})
+															</span>
+														)}
 													</div>
 												)}
 											</div>
