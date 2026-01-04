@@ -502,14 +502,24 @@ function CostBasisPage() {
 									/>
 								)}
 								<div className="flex-1">
-									<div className="font-semibold">{selectedToken.name}</div>
+									<div className="flex items-center gap-2">
+										<div className="font-semibold">{selectedToken.name}</div>
+										{selectedToken.isVerified && (
+											<span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded">
+												Verified
+											</span>
+										)}
+									</div>
 									<div className="text-sm text-slate-400">
 										{selectedToken.symbol}
 									</div>
 								</div>
 								<button
 									type="button"
-									onClick={() => setSelectedToken(null)}
+									onClick={() => {
+										setSelectedToken(null);
+										setShouldFocusSearch(true);
+									}}
 									className="text-slate-400 hover:text-white"
 								>
 									Change
