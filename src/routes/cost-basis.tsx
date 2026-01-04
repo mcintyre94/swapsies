@@ -39,6 +39,7 @@ function CostBasisPage() {
 	const [inputMode, setInputMode] = useState<InputMode>("per-token");
 	const [selectedTokenIndex, setSelectedTokenIndex] = useState(0);
 	const searchInputRef = useRef<HTMLInputElement>(null);
+	const [shouldFocusSearch, setShouldFocusSearch] = useState(false);
 
 	const [costBasisPerToken, setCostBasisPerToken] = useState("");
 	const [totalBalance, setTotalBalance] = useState("");
@@ -59,6 +60,14 @@ function CostBasisPage() {
 		const entries = Object.values(costBasisData) as StoredCostBasis[];
 		setSavedCostBasis(entries);
 	}, []);
+
+	// Focus search input after saving (when selectedToken becomes null and flag is set)
+	useEffect(() => {
+		if (shouldFocusSearch && !selectedToken) {
+			searchInputRef.current?.focus();
+			setShouldFocusSearch(false);
+		}
+	}, [shouldFocusSearch, selectedToken]);
 
 	// Use TanStack Query for token search
 	const { data: searchResults = [], isFetching: isSearching } = useQuery({
@@ -164,6 +173,9 @@ function CostBasisPage() {
 			const updatedData = getCostBasisData();
 			const entries = Object.values(updatedData) as StoredCostBasis[];
 			setSavedCostBasis(entries);
+
+			// Trigger focus on search input after re-render
+			setShouldFocusSearch(true);
 		}
 	};
 
