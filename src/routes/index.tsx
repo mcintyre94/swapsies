@@ -191,9 +191,9 @@ function SwapPage() {
 	}, [inputTokenCostBasis, quote, debouncedAmount]);
 
 	return (
-		<div className="min-h-screen p-8">
+		<div className="min-h-screen p-4 sm:p-8">
 			<div className="max-w-2xl mx-auto">
-				<div className="flex justify-between items-start mb-8">
+				<div className="flex justify-between items-start mb-4 sm:mb-8">
 					<div>
 						<h1 className="text-4xl font-bold mb-2">Swap</h1>
 					</div>
@@ -207,7 +207,7 @@ function SwapPage() {
 					}}
 					noValidate
 				>
-					<div className="bg-slate-800 rounded-lg p-6">
+					<div className="bg-slate-800 rounded-lg p-4 sm:p-6">
 						{/* Input Token */}
 						<div className="mb-4">
 							<div className="block text-sm font-medium mb-2">Swap your</div>
@@ -216,7 +216,7 @@ function SwapPage() {
 									ref={inputTokenButtonRef}
 									type="button"
 									onClick={() => setSelectMode("input")}
-									className="flex items-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors min-w-[140px]"
+									className="flex items-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors min-w-[120px] sm:min-w-[140px]"
 								>
 									{inputToken ? (
 										<>
@@ -240,7 +240,7 @@ function SwapPage() {
 									onChange={(e) => setAmount(e.target.value)}
 									onWheel={(e) => e.currentTarget.blur()}
 									placeholder="0.00"
-									className={`flex-1 px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 ${
+									className={`flex-1 min-w-0 px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 ${
 										isAmountExceedingBalance
 											? "ring-2 ring-red-500 focus:ring-red-500"
 											: "focus:ring-cyan-500"
@@ -299,7 +299,7 @@ function SwapPage() {
 									ref={outputTokenButtonRef}
 									type="button"
 									onClick={() => setSelectMode("output")}
-									className="flex items-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors min-w-[140px]"
+									className="flex items-center gap-2 px-4 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition-colors min-w-[120px] sm:min-w-[140px]"
 								>
 									{outputToken ? (
 										<>
@@ -333,7 +333,7 @@ function SwapPage() {
 						{/* Quote details */}
 						{quote && (
 							<>
-								<div className="mt-6 p-4 bg-slate-700/50 rounded-lg space-y-2 text-sm">
+								<div className="mt-6 p-3 sm:p-4 bg-slate-700/50 rounded-lg space-y-2 text-sm">
 									<div className="flex justify-between">
 										<span className="text-slate-400">Rate</span>
 										<span>
