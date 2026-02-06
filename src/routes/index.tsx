@@ -179,7 +179,7 @@ function SwapPage() {
 
 		const costBasisPerToken = inputTokenCostBasis.costBasisUSD;
 		const totalCostBasis = costBasisPerToken * amountNum;
-		const realizedGainLoss = quote.inUsdValue - totalCostBasis;
+		const realizedGainLoss = quote.outUsdValue - totalCostBasis;
 		const gainLossPercentage = (realizedGainLoss / totalCostBasis) * 100;
 
 		return {
