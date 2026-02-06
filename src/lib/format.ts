@@ -88,6 +88,15 @@ export function formatUSD(value: number, decimals = 2): string {
 }
 
 /**
+ * Formats a USD value, showing "<$0.01" for very small positive amounts
+ */
+export function formatUSDCompact(value: number): string {
+	if (value > 0 && value < 0.01) return "<$0.01";
+	if (value < 0 && value > -0.01) return "-<$0.01";
+	return formatUSD(value);
+}
+
+/**
  * Formats a token amount with appropriate decimals
  * Uses up to 6 decimals but removes trailing zeros
  * For very small values (< 0.001), uses subscript notation like "0.0₅1234"

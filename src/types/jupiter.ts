@@ -32,9 +32,12 @@ export interface JupiterOrderResponse {
 	taker?: Address;
 	gasless: boolean;
 	signatureFeeLamports: number;
+	signatureFeePayer?: Address;
 	transaction?: string;
 	prioritizationFeeLamports: number;
+	prioritizationFeePayer?: Address;
 	rentFeeLamports: number;
+	rentFeePayer?: Address;
 	inputMint: Address;
 	outputMint: Address;
 	swapType: string;
