@@ -337,12 +337,14 @@ export default function TokenSelectionModal({
 											: "hover:bg-slate-700"
 									}`}
 								>
-									{token.logo && (
+									{token.logo ? (
 										<img
 											src={token.logo}
 											alt={token.symbol}
 											className="w-10 h-10 rounded-full flex-shrink-0"
 										/>
+									) : (
+										<div className="w-10 h-10 rounded-full bg-slate-600 flex-shrink-0" />
 									)}
 									<div className="flex-1 min-w-0">
 										{/* Top row: Symbol and verified badge */}

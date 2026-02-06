@@ -435,12 +435,14 @@ function CostBasisPage() {
 										>
 											<td className="py-3 px-2">
 												<div className="flex items-center gap-3">
-													{entry.tokenLogo && (
+													{entry.tokenLogo ? (
 														<img
 															src={entry.tokenLogo}
 															alt={entry.tokenSymbol}
-															className="w-8 h-8 rounded-full"
+															className="w-8 h-8 rounded-full flex-shrink-0"
 														/>
+													) : (
+														<div className="w-8 h-8 rounded-full bg-slate-600 flex-shrink-0" />
 													)}
 													<div>
 														<div className="flex items-center gap-2">
@@ -563,12 +565,14 @@ function CostBasisPage() {
 																: "hover:bg-slate-600"
 														}`}
 													>
-														{token.logo && (
+														{token.logo ? (
 															<img
 																src={token.logo}
 																alt={token.symbol}
-																className="w-8 h-8 rounded-full"
+																className="w-8 h-8 rounded-full flex-shrink-0"
 															/>
+														) : (
+															<div className="w-8 h-8 rounded-full bg-slate-600 flex-shrink-0" />
 														)}
 														<div className="flex-1 min-w-0">
 															<div className="flex items-center gap-2">
