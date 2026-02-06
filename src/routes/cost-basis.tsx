@@ -2,10 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
 	ArrowRightLeft,
+	Check,
 	ExternalLink,
 	Loader2,
 	Search,
 	Trash2,
+	X,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
@@ -52,6 +54,7 @@ function CostBasisPage() {
 	const [totalBalance, setTotalBalance] = useState("");
 	const [totalCost, setTotalCost] = useState("");
 	const [savedCostBasis, setSavedCostBasis] = useState<StoredCostBasis[]>([]);
+	const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
 
 	// Import state management
 	const [isImporting, setIsImporting] = useState(false);
@@ -198,6 +201,8 @@ function CostBasisPage() {
 		const success = saveCostBasisData(costBasisData);
 
 		if (success) {
+			setConfirmingDelete(null);
+
 			// Reload saved data
 			const updatedData = getCostBasisData();
 			const entries = Object.values(updatedData) as StoredCostBasis[];
@@ -478,22 +483,52 @@ function CostBasisPage() {
 											</td>
 											<td className="py-3 px-2">
 												<div className="flex items-center justify-end">
-													<Link
-														to="/"
-														search={{ inputMint: entry.tokenAddress }}
-														className="text-slate-400 hover:text-cyan-400 transition-colors p-2"
-														title="Swap"
-													>
-														<ArrowRightLeft className="w-4 h-4" />
-													</Link>
-													<button
-														type="button"
-														onClick={() => handleDelete(entry.tokenAddress)}
-														className="text-slate-400 hover:text-red-400 transition-colors p-2"
-														title="Delete"
-													>
-														<Trash2 className="w-4 h-4" />
-													</button>
+													{confirmingDelete === entry.tokenAddress ? (
+														<>
+															<span className="text-sm text-red-400 mr-1">
+																Delete?
+															</span>
+															<button
+																type="button"
+																onClick={() => handleDelete(entry.tokenAddress)}
+																className="text-slate-400 hover:text-red-400 transition-colors p-2"
+																title="Confirm delete"
+															>
+																<Check className="w-4 h-4" />
+															</button>
+															<button
+																type="button"
+																onClick={() => setConfirmingDelete(null)}
+																className="text-slate-400 hover:text-white transition-colors p-2"
+																title="Cancel"
+															>
+																<X className="w-4 h-4" />
+															</button>
+														</>
+													) : (
+														<>
+															<Link
+																to="/"
+																search={{
+																	inputMint: entry.tokenAddress,
+																}}
+																className="text-slate-400 hover:text-cyan-400 transition-colors p-2"
+																title="Swap"
+															>
+																<ArrowRightLeft className="w-4 h-4" />
+															</Link>
+															<button
+																type="button"
+																onClick={() =>
+																	setConfirmingDelete(entry.tokenAddress)
+																}
+																className="text-slate-400 hover:text-red-400 transition-colors p-2"
+																title="Delete"
+															>
+																<Trash2 className="w-4 h-4" />
+															</button>
+														</>
+													)}
 												</div>
 											</td>
 										</tr>
