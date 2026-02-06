@@ -249,10 +249,14 @@ function SwapPage() {
 							</div>
 							{account && inputToken && inputTokenBalanceUI !== null && (
 								<div className="mt-2 flex items-center justify-between text-sm">
-									<div className="text-slate-400">
+									<button
+										type="button"
+										onClick={handleSetMax}
+										className="text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
+									>
 										Balance: {formatTokenAmount(inputTokenBalanceUI)}{" "}
 										{inputToken.symbol}
-									</div>
+									</button>
 									<div className="flex gap-2">
 										<button
 											type="button"
