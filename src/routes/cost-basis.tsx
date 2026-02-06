@@ -1,6 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { ExternalLink, Loader2, Search, Trash2 } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+	ArrowRightLeft,
+	ExternalLink,
+	Loader2,
+	Search,
+	Trash2,
+} from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
 	getCostBasisData,
@@ -470,15 +476,25 @@ function CostBasisPage() {
 											<td className="py-3 px-2 text-right font-mono">
 												{formatUSD(entry.costBasisUSD, 6)}
 											</td>
-											<td className="py-3 px-2 text-right">
-												<button
-													type="button"
-													onClick={() => handleDelete(entry.tokenAddress)}
-													className="text-slate-400 hover:text-red-400 transition-colors p-2"
-													title="Delete"
-												>
-													<Trash2 className="w-4 h-4" />
-												</button>
+											<td className="py-3 px-2">
+												<div className="flex items-center justify-end">
+													<Link
+														to="/"
+														search={{ inputMint: entry.tokenAddress }}
+														className="text-slate-400 hover:text-cyan-400 transition-colors p-2"
+														title="Swap"
+													>
+														<ArrowRightLeft className="w-4 h-4" />
+													</Link>
+													<button
+														type="button"
+														onClick={() => handleDelete(entry.tokenAddress)}
+														className="text-slate-400 hover:text-red-400 transition-colors p-2"
+														title="Delete"
+													>
+														<Trash2 className="w-4 h-4" />
+													</button>
+												</div>
 											</td>
 										</tr>
 									))}

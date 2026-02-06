@@ -1,3 +1,4 @@
+import { isAddress } from "@solana/kit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useWalletUiAccount, WalletUiDropdown } from "@wallet-ui/react";
@@ -32,13 +33,25 @@ function CompactUSD({ value }: { value: number }) {
 	);
 }
 
+interface SwapSearchParams {
+	inputMint?: string;
+}
+
 export const Route = createFileRoute("/")({
 	component: SwapPage,
+	validateSearch: (search: Record<string, unknown>): SwapSearchParams => {
+		const inputMint = search.inputMint;
+		if (typeof inputMint === "string" && isAddress(inputMint)) {
+			return { inputMint };
+		}
+		return {};
+	},
 });
 
 type TokenSelectMode = "input" | "output" | null;
 
 function SwapPage() {
+	const { inputMint } = Route.useSearch();
 	const queryClient = useQueryClient();
 	const [inputToken, setInputToken] = useState<JupiterToken | null>(null);
 	const [outputToken, setOutputToken] = useState<JupiterToken | null>(null);
@@ -48,6 +61,37 @@ function SwapPage() {
 	const { account } = useWalletUiAccount();
 	const inputTokenButtonRef = useRef<HTMLButtonElement>(null);
 	const outputTokenButtonRef = useRef<HTMLButtonElement>(null);
+
+	// Track if we've already applied the inputMint from URL
+	const appliedInputMintRef = useRef<string | null>(null);
+
+	// Fetch token from inputMint query param
+	const { data: inputMintToken } = useQuery({
+		queryKey: ["token-by-mint", inputMint],
+		queryFn: ({ signal }) =>
+			searchTokens({ data: { query: inputMint as string, limit: 1 }, signal }),
+		enabled: !!inputMint && appliedInputMintRef.current !== inputMint,
+		staleTime: Number.POSITIVE_INFINITY,
+	});
+
+	// Set input token from URL param (only once per inputMint value)
+	useEffect(() => {
+		if (
+			inputMintToken &&
+			inputMintToken.length > 0 &&
+			inputMint &&
+			appliedInputMintRef.current !== inputMint
+		) {
+			// Find exact match by address
+			const exactMatch = inputMintToken.find(
+				(token) => token.address === inputMint,
+			);
+			if (exactMatch) {
+				setInputToken(exactMatch);
+				appliedInputMintRef.current = inputMint;
+			}
+		}
+	}, [inputMintToken, inputMint]);
 
 	// Debounce amount to avoid excessive quote requests
 	const [debouncedAmount, setDebouncedAmount] = useState(amount);
@@ -115,18 +159,26 @@ function SwapPage() {
 		staleTime: Number.POSITIVE_INFINITY, // Cache forever
 	});
 
-	// Set default tokens on mount
+	// Set default tokens on mount (but not if inputMint is provided and we're still loading)
 	useEffect(() => {
-		if (
-			defaultTokens &&
-			defaultTokens.length >= 2 &&
-			!inputToken &&
-			!outputToken
-		) {
-			setInputToken(defaultTokens[0]);
-			setOutputToken(defaultTokens[1]);
+		if (defaultTokens && defaultTokens.length >= 2) {
+			// If inputMint is provided, only set output token as default (input will come from URL)
+			if (inputMint) {
+				if (!outputToken) {
+					// Set output to the second default token, or first if input matches second
+					const outputDefault =
+						defaultTokens[1].address === inputMint
+							? defaultTokens[0]
+							: defaultTokens[1];
+					setOutputToken(outputDefault);
+				}
+			} else if (!inputToken && !outputToken) {
+				// No inputMint param - use both defaults
+				setInputToken(defaultTokens[0]);
+				setOutputToken(defaultTokens[1]);
+			}
 		}
-	}, [defaultTokens, inputToken, outputToken]);
+	}, [defaultTokens, inputToken, outputToken, inputMint]);
 
 	const handleSwapTokens = () => {
 		const temp = inputToken;
@@ -312,6 +364,8 @@ function SwapPage() {
 											)}
 											<span>{inputToken.symbol}</span>
 										</>
+									) : inputMint && !appliedInputMintRef.current ? (
+										<span className="text-slate-400">Loading...</span>
 									) : (
 										<span>Select token</span>
 									)}
