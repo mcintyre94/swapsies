@@ -1,18 +1,36 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useWalletUiAccount, WalletUiDropdown } from "@wallet-ui/react";
-import { ArrowDownUp } from "lucide-react";
+import { ArrowDownUp, ChevronDown } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import SwapButton from "../components/SwapButton";
 import TokenSelectionModal from "../components/TokenSelectionModal";
 import { getCostBasisForToken } from "../lib/cost-basis";
-import { formatNumber, formatTokenAmount, formatUSD } from "../lib/format";
+import {
+	formatNumber,
+	formatTokenAmount,
+	formatUSD,
+	formatUSDCompact,
+} from "../lib/format";
 import {
 	getOrder,
 	getWalletHoldings,
 	searchTokens,
 } from "../lib/server-functions";
 import type { JupiterOrderResponse, JupiterToken } from "../types/jupiter";
+
+function CompactUSD({ value }: { value: number }) {
+	const isCompact = (value > 0 && value < 0.01) || (value < 0 && value > -0.01);
+	if (!isCompact) return <>{formatUSDCompact(value)}</>;
+	return (
+		<span className="relative group">
+			{formatUSDCompact(value)}
+			<span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-slate-700 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+				{formatUSD(value, 6)}
+			</span>
+		</span>
+	);
+}
 
 export const Route = createFileRoute("/")({
 	component: SwapPage,
@@ -26,6 +44,7 @@ function SwapPage() {
 	const [outputToken, setOutputToken] = useState<JupiterToken | null>(null);
 	const [amount, setAmount] = useState("");
 	const [selectMode, setSelectMode] = useState<TokenSelectMode>(null);
+	const [costExpanded, setCostExpanded] = useState(false);
 	const { account } = useWalletUiAccount();
 	const inputTokenButtonRef = useRef<HTMLButtonElement>(null);
 	const outputTokenButtonRef = useRef<HTMLButtonElement>(null);
@@ -170,6 +189,67 @@ function SwapPage() {
 		return getCostBasisForToken(inputToken.address);
 	}, [inputToken]);
 
+	// Extract user-paid network fee in lamports
+	const userFeeLamports = useMemo(() => {
+		if (!quote) return 0;
+		if (!quote.transaction || !account?.address) return null;
+		if (
+			!quote.signatureFeePayer &&
+			!quote.prioritizationFeePayer &&
+			!quote.rentFeePayer
+		) {
+			return null;
+		}
+		const addr = account.address;
+		return (
+			(quote.signatureFeePayer === addr ? quote.signatureFeeLamports : 0) +
+			(quote.prioritizationFeePayer === addr
+				? quote.prioritizationFeeLamports
+				: 0) +
+			(quote.rentFeePayer === addr ? quote.rentFeeLamports : 0)
+		);
+	}, [quote, account?.address]);
+
+	// Fetch SOL price for network fee USD conversion
+	const SOL_MINT = "So11111111111111111111111111111111111111112";
+	const { data: solTokenData } = useQuery({
+		queryKey: ["tokens", SOL_MINT, 1],
+		queryFn: ({ signal }) =>
+			searchTokens({ data: { query: SOL_MINT, limit: 1 }, signal }),
+		enabled: !!userFeeLamports && userFeeLamports > 0,
+		staleTime: 30 * 1000,
+		refetchInterval: 30 * 1000,
+	});
+	const solPrice = solTokenData?.[0]?.usdPrice ?? null;
+
+	// Compute full cost breakdown in USD
+	const costBreakdown = useMemo(() => {
+		if (!quote) return null;
+		const isInputFee = quote.feeMint === inputToken?.address;
+		const platformFeeUSD =
+			(isInputFee ? quote.inUsdValue : quote.outUsdValue) *
+			(quote.feeBps / 10000);
+		const networkFeeUSD =
+			userFeeLamports && userFeeLamports > 0 && solPrice
+				? (userFeeLamports / 1e9) * solPrice
+				: 0;
+		const networkFeeKnown =
+			userFeeLamports !== null && (userFeeLamports === 0 || solPrice !== null);
+		const priceImpactUSD = quote.inUsdValue - quote.outUsdValue;
+		const totalCostUSD = priceImpactUSD + platformFeeUSD + networkFeeUSD;
+		const totalCostPct =
+			quote.inUsdValue > 0 ? (totalCostUSD / quote.inUsdValue) * 100 : 0;
+		return {
+			platformFeeUSD,
+			networkFeeUSD,
+			networkFeeKnown,
+			priceImpactUSD,
+			totalCostUSD,
+			totalCostPct,
+			isGasless: quote.gasless && userFeeLamports === 0,
+		};
+	}, [quote, inputToken?.address, userFeeLamports, solPrice]);
+
 	// Calculate cost basis metrics
 	const costBasisMetrics = useMemo(() => {
 		if (!inputTokenCostBasis || !quote || !debouncedAmount) return null;
@@ -179,7 +259,10 @@ function SwapPage() {
 
 		const costBasisPerToken = inputTokenCostBasis.costBasisUSD;
 		const totalCostBasis = costBasisPerToken * amountNum;
-		const realizedGainLoss = quote.outUsdValue - totalCostBasis;
+		const fees =
+			(costBreakdown?.platformFeeUSD ?? 0) +
+			(costBreakdown?.networkFeeUSD ?? 0);
+		const realizedGainLoss = quote.outUsdValue - fees - totalCostBasis;
 		const gainLossPercentage = (realizedGainLoss / totalCostBasis) * 100;
 
 		return {
@@ -188,7 +271,7 @@ function SwapPage() {
 			realizedGainLoss,
 			gainLossPercentage,
 		};
-	}, [inputTokenCostBasis, quote, debouncedAmount]);
+	}, [inputTokenCostBasis, quote, debouncedAmount, costBreakdown]);
 
 	return (
 		<div className="min-h-screen p-4 sm:p-8">
@@ -366,49 +449,165 @@ function SwapPage() {
 										</span>
 									</div>
 									<div className="flex justify-between">
-										<span className="text-slate-400">Minimum Received</span>
-										<span>
-											{formatTokenAmount(
-												Number.parseInt(quote.otherAmountThreshold, 10) /
-													10 ** (outputToken?.decimals || 0),
-											)}{" "}
-											{outputToken?.symbol}
-										</span>
+										<span className="text-slate-400">Input Value</span>
+										<span>{formatUSD(quote.inUsdValue)}</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-slate-400">Output Value</span>
+										<span>{formatUSD(quote.outUsdValue)}</span>
 									</div>
 
-									{/* USD Value Summary */}
+									{/* Fees & Costs */}
 									<div className="pt-2 mt-2 border-t border-slate-600/50 space-y-2">
 										<div className="flex justify-between">
-											<span className="text-slate-400">Input Value</span>
-											<span>{formatUSD(quote.inUsdValue)}</span>
+											<span className="text-slate-400">Platform Fee</span>
+											<span className="text-slate-300">
+												{(() => {
+													const isInputFee =
+														quote.feeMint === inputToken?.address;
+													const feeToken = isInputFee
+														? inputToken
+														: outputToken;
+													const rawAmount = isInputFee
+														? quote.inAmount
+														: quote.outAmount;
+													const feeAmount =
+														(Number.parseInt(rawAmount, 10) /
+															10 ** (feeToken?.decimals || 0)) *
+														(quote.feeBps / 10000);
+													const feeDisplay =
+														feeAmount > 0 && feeAmount < 0.001
+															? "<0.001"
+															: formatTokenAmount(feeAmount);
+													return (
+														<>
+															{formatNumber(quote.feeBps / 100, 2)}% (
+															<span className="relative group">
+																{feeDisplay}
+																{feeAmount > 0 && feeAmount < 0.001 && (
+																	<span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-slate-700 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+																		{formatTokenAmount(feeAmount)}{" "}
+																		{feeToken?.symbol}
+																	</span>
+																)}
+															</span>{" "}
+															{feeToken?.symbol})
+														</>
+													);
+												})()}
+											</span>
 										</div>
 										<div className="flex justify-between">
-											<span className="text-slate-400">Output Value</span>
-											<span>{formatUSD(quote.outUsdValue)}</span>
+											<span className="text-slate-400">Network Fee</span>
+											<span className="text-slate-300">
+												{(() => {
+													if (userFeeLamports === null) {
+														return (
+															<span className="text-slate-500 text-sm">
+																Unable to estimate
+															</span>
+														);
+													}
+													if (quote.gasless && userFeeLamports === 0) {
+														return "Gasless";
+													}
+													const feeSol = userFeeLamports / 1e9;
+													const feeDisplay =
+														feeSol > 0 && feeSol < 0.001
+															? "<0.001"
+															: formatTokenAmount(feeSol);
+													return (
+														<>
+															<span className="relative group">
+																{feeDisplay}
+																{feeSol > 0 && feeSol < 0.001 && (
+																	<span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-slate-700 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+																		{formatTokenAmount(feeSol)} SOL
+																	</span>
+																)}
+															</span>{" "}
+															SOL
+														</>
+													);
+												})()}
+											</span>
 										</div>
-										<div className="flex justify-between">
-											<span className="text-slate-400">Estimated Cost</span>
-											{(() => {
-												const cost = quote.inUsdValue - quote.outUsdValue;
-												const costPct =
-													quote.inUsdValue > 0
-														? (cost / quote.inUsdValue) * 100
-														: 0;
-												const colorClass =
-													cost <= 0
-														? "text-green-400"
-														: costPct <= 0.1
-															? "text-slate-300"
-															: costPct <= 1
-																? "text-yellow-400"
-																: "text-red-400";
-												return (
-													<span className={colorClass}>
-														{formatUSD(cost)} ({formatNumber(costPct)}%)
+										{costBreakdown && (
+											<div>
+												<button
+													type="button"
+													onClick={() => setCostExpanded((v) => !v)}
+													className="flex justify-between items-center w-full text-left"
+												>
+													<span className="text-slate-400 flex items-center gap-1">
+														Estimated Cost
+														<ChevronDown
+															className={`w-3.5 h-3.5 transition-transform ${costExpanded ? "rotate-180" : ""}`}
+														/>
 													</span>
-												);
-											})()}
-										</div>
+													<span
+														className={
+															costBreakdown.totalCostUSD <= 0
+																? "text-green-400"
+																: costBreakdown.totalCostPct <= 0.1
+																	? "text-slate-300"
+																	: costBreakdown.totalCostPct <= 1
+																		? "text-yellow-400"
+																		: "text-red-400"
+														}
+													>
+														<CompactUSD value={costBreakdown.totalCostUSD} /> (
+														{formatNumber(costBreakdown.totalCostPct)}%)
+													</span>
+												</button>
+												<div
+													className={`grid transition-[grid-template-rows] duration-200 ${costExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+												>
+													<div className="overflow-hidden">
+														<div className="pt-2 pl-3 space-y-1.5">
+															<div className="flex justify-between text-xs">
+																<span className="text-slate-400">
+																	Price Impact
+																</span>
+																<span className="text-slate-300">
+																	<CompactUSD
+																		value={costBreakdown.priceImpactUSD}
+																	/>
+																</span>
+															</div>
+															<div className="flex justify-between text-xs">
+																<span className="text-slate-400">
+																	Platform Fee
+																</span>
+																<span className="text-slate-300">
+																	<CompactUSD
+																		value={costBreakdown.platformFeeUSD}
+																	/>
+																</span>
+															</div>
+															<div className="flex justify-between text-xs">
+																<span className="text-slate-400">
+																	Network Fee
+																</span>
+																<span className="text-slate-300">
+																	{costBreakdown.isGasless ? (
+																		"Gasless"
+																	) : userFeeLamports === null ? (
+																		"Unable to estimate"
+																	) : !costBreakdown.networkFeeKnown ? (
+																		"..."
+																	) : (
+																		<CompactUSD
+																			value={costBreakdown.networkFeeUSD}
+																		/>
+																	)}
+																</span>
+															</div>
+														</div>
+													</div>
+												</div>
+											</div>
+										)}
 									</div>
 
 									{/* Cost Basis Section */}
