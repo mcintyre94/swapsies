@@ -5,11 +5,18 @@ import {
 	Check,
 	ExternalLink,
 	Loader2,
+	Pencil,
 	Search,
 	Trash2,
 	X,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, {
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import {
 	getCostBasisData,
 	type StoredCostBasis,
@@ -55,6 +62,13 @@ function CostBasisPage() {
 	const [totalCost, setTotalCost] = useState("");
 	const [savedCostBasis, setSavedCostBasis] = useState<StoredCostBasis[]>([]);
 	const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+
+	// Edit state management
+	const [editingToken, setEditingToken] = useState<string | null>(null);
+	const [editInputMode, setEditInputMode] = useState<InputMode>("per-token");
+	const [editCostBasisPerToken, setEditCostBasisPerToken] = useState("");
+	const [editTotalBalance, setEditTotalBalance] = useState("");
+	const [editTotalCost, setEditTotalCost] = useState("");
 
 	// Import state management
 	const [isImporting, setIsImporting] = useState(false);
@@ -156,6 +170,19 @@ function CostBasisPage() {
 		return cost / balance;
 	}, [inputMode, costBasisPerToken, totalBalance, totalCost]);
 
+	// Memoize the edit cost basis calculation
+	const editCalculatedCostBasis = useMemo((): number | null => {
+		if (editInputMode === "per-token") {
+			const value = Number.parseFloat(editCostBasisPerToken);
+			return Number.isNaN(value) ? null : value;
+		}
+		const balance = Number.parseFloat(editTotalBalance);
+		const cost = Number.parseFloat(editTotalCost);
+		if (Number.isNaN(balance) || Number.isNaN(cost) || balance === 0)
+			return null;
+		return cost / balance;
+	}, [editInputMode, editCostBasisPerToken, editTotalBalance, editTotalCost]);
+
 	const handleFormSubmit = (e: React.FormEvent) => {
 		e.preventDefault(); // Prevent page reload
 		handleSave(); // Call existing save logic
@@ -208,6 +235,59 @@ function CostBasisPage() {
 			const entries = Object.values(updatedData) as StoredCostBasis[];
 			setSavedCostBasis(entries);
 		}
+	};
+
+	const handleEditModeChange = (mode: InputMode) => {
+		setEditInputMode(mode);
+		// Clear fields when switching modes to prevent stale calculations
+		setEditCostBasisPerToken("");
+		setEditTotalBalance("");
+		setEditTotalCost("");
+	};
+
+	const handleEditStart = (entry: StoredCostBasis) => {
+		setEditingToken(entry.tokenAddress);
+		setEditInputMode("per-token");
+		setEditCostBasisPerToken(entry.costBasisUSD.toString());
+		setEditTotalBalance("");
+		setEditTotalCost("");
+	};
+
+	const handleEditSave = () => {
+		if (!editingToken || editCalculatedCostBasis === null) return;
+
+		const costBasisData = getCostBasisData();
+		const existingEntry = costBasisData[editingToken];
+
+		if (existingEntry) {
+			// Preserve existing token metadata, only update cost basis
+			costBasisData[editingToken] = {
+				...existingEntry,
+				costBasisUSD: editCalculatedCostBasis,
+			};
+
+			const success = saveCostBasisData(costBasisData);
+
+			if (success) {
+				// Clear edit state
+				setEditingToken(null);
+				setEditCostBasisPerToken("");
+				setEditTotalBalance("");
+				setEditTotalCost("");
+
+				// Reload saved data
+				const updatedData = getCostBasisData();
+				const entries = Object.values(updatedData) as StoredCostBasis[];
+				setSavedCostBasis(entries);
+			}
+		}
+	};
+
+	const handleEditCancel = () => {
+		setEditingToken(null);
+		setEditCostBasisPerToken("");
+		setEditTotalBalance("");
+		setEditTotalCost("");
 	};
 
 	const handleExport = () => {
@@ -439,100 +519,243 @@ function CostBasisPage() {
 									</tr>
 								</thead>
 								<tbody>
-									{savedCostBasis.map((entry) => (
-										<tr
-											key={entry.tokenAddress}
-											className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors"
-										>
-											<td className="py-3 px-2">
-												<div className="flex items-center gap-3">
-													{entry.tokenLogo ? (
-														<img
-															src={entry.tokenLogo}
-															alt={entry.tokenSymbol}
-															className="w-8 h-8 rounded-full flex-shrink-0"
-														/>
-													) : (
-														<div className="w-8 h-8 rounded-full bg-slate-600 flex-shrink-0" />
-													)}
-													<div>
-														<div className="flex items-center gap-2">
-															<a
-																href={`https://orbmarkets.io/address/${entry.tokenAddress}`}
-																target="_blank"
-																rel="noopener noreferrer"
-																className="font-semibold hover:text-cyan-400 transition-colors flex items-center gap-1"
-															>
-																{entry.tokenSymbol}
-																<ExternalLink className="w-3 h-3" />
-															</a>
-															{entry.isVerified && (
-																<span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded">
-																	Verified
-																</span>
+									{savedCostBasis.map((entry) => {
+										const isEditing = editingToken === entry.tokenAddress;
+										return (
+											<React.Fragment key={entry.tokenAddress}>
+												<tr className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors">
+													<td className="py-3 px-2">
+														<div className="flex items-center gap-3">
+															{entry.tokenLogo ? (
+																<img
+																	src={entry.tokenLogo}
+																	alt={entry.tokenSymbol}
+																	className="w-8 h-8 rounded-full flex-shrink-0"
+																/>
+															) : (
+																<div className="w-8 h-8 rounded-full bg-slate-600 flex-shrink-0" />
+															)}
+															<div>
+																<div className="flex items-center gap-2">
+																	<a
+																		href={`https://orbmarkets.io/address/${entry.tokenAddress}`}
+																		target="_blank"
+																		rel="noopener noreferrer"
+																		className="font-semibold hover:text-cyan-400 transition-colors flex items-center gap-1"
+																	>
+																		{entry.tokenSymbol}
+																		<ExternalLink className="w-3 h-3" />
+																	</a>
+																	{entry.isVerified && (
+																		<span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded">
+																			Verified
+																		</span>
+																	)}
+																</div>
+																<div className="text-sm text-slate-400">
+																	{entry.tokenName}
+																</div>
+															</div>
+														</div>
+													</td>
+													<td className="py-3 px-2 text-right font-mono">
+														{formatUSD(entry.costBasisUSD, 6)}
+													</td>
+													<td className="py-3 px-2">
+														<div className="flex items-center justify-end">
+															{confirmingDelete === entry.tokenAddress ? (
+																<>
+																	<span className="text-sm text-red-400 mr-1">
+																		Delete?
+																	</span>
+																	<button
+																		type="button"
+																		onClick={() =>
+																			handleDelete(entry.tokenAddress)
+																		}
+																		className="text-slate-400 hover:text-red-400 transition-colors p-2"
+																		title="Confirm delete"
+																	>
+																		<Check className="w-4 h-4" />
+																	</button>
+																	<button
+																		type="button"
+																		onClick={() => setConfirmingDelete(null)}
+																		className="text-slate-400 hover:text-white transition-colors p-2"
+																		title="Cancel"
+																	>
+																		<X className="w-4 h-4" />
+																	</button>
+																</>
+															) : (
+																<>
+																	<Link
+																		to="/"
+																		search={{
+																			inputMint: entry.tokenAddress,
+																		}}
+																		className="text-slate-400 hover:text-cyan-400 transition-colors p-2"
+																		title="Swap"
+																	>
+																		<ArrowRightLeft className="w-4 h-4" />
+																	</Link>
+																	<button
+																		type="button"
+																		onClick={() => handleEditStart(entry)}
+																		className="text-slate-400 hover:text-cyan-400 transition-colors p-2"
+																		title="Edit"
+																	>
+																		<Pencil className="w-4 h-4" />
+																	</button>
+																	<button
+																		type="button"
+																		onClick={() =>
+																			setConfirmingDelete(entry.tokenAddress)
+																		}
+																		className="text-slate-400 hover:text-red-400 transition-colors p-2"
+																		title="Delete"
+																	>
+																		<Trash2 className="w-4 h-4" />
+																	</button>
+																</>
 															)}
 														</div>
-														<div className="text-sm text-slate-400">
-															{entry.tokenName}
-														</div>
-													</div>
-												</div>
-											</td>
-											<td className="py-3 px-2 text-right font-mono">
-												{formatUSD(entry.costBasisUSD, 6)}
-											</td>
-											<td className="py-3 px-2">
-												<div className="flex items-center justify-end">
-													{confirmingDelete === entry.tokenAddress ? (
-														<>
-															<span className="text-sm text-red-400 mr-1">
-																Delete?
-															</span>
-															<button
-																type="button"
-																onClick={() => handleDelete(entry.tokenAddress)}
-																className="text-slate-400 hover:text-red-400 transition-colors p-2"
-																title="Confirm delete"
-															>
-																<Check className="w-4 h-4" />
-															</button>
-															<button
-																type="button"
-																onClick={() => setConfirmingDelete(null)}
-																className="text-slate-400 hover:text-white transition-colors p-2"
-																title="Cancel"
-															>
-																<X className="w-4 h-4" />
-															</button>
-														</>
-													) : (
-														<>
-															<Link
-																to="/"
-																search={{
-																	inputMint: entry.tokenAddress,
-																}}
-																className="text-slate-400 hover:text-cyan-400 transition-colors p-2"
-																title="Swap"
-															>
-																<ArrowRightLeft className="w-4 h-4" />
-															</Link>
-															<button
-																type="button"
-																onClick={() =>
-																	setConfirmingDelete(entry.tokenAddress)
-																}
-																className="text-slate-400 hover:text-red-400 transition-colors p-2"
-																title="Delete"
-															>
-																<Trash2 className="w-4 h-4" />
-															</button>
-														</>
-													)}
-												</div>
-											</td>
-										</tr>
-									))}
+													</td>
+												</tr>
+												{isEditing && (
+													<tr className="border-b border-slate-700/50">
+														<td colSpan={3} className="px-2 py-4">
+															<div className="bg-slate-700/50 rounded-lg p-4">
+																<div className="flex gap-2 mb-4">
+																	<button
+																		type="button"
+																		onClick={() =>
+																			handleEditModeChange("per-token")
+																		}
+																		className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+																			editInputMode === "per-token"
+																				? "bg-cyan-500 text-white"
+																				: "bg-slate-700 text-slate-400 hover:text-white"
+																		}`}
+																	>
+																		Cost Per Token
+																	</button>
+																	<button
+																		type="button"
+																		onClick={() =>
+																			handleEditModeChange("total")
+																		}
+																		className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+																			editInputMode === "total"
+																				? "bg-cyan-500 text-white"
+																				: "bg-slate-700 text-slate-400 hover:text-white"
+																		}`}
+																	>
+																		Total Balance + Cost
+																	</button>
+																</div>
+
+																{editInputMode === "per-token" ? (
+																	<div>
+																		<label
+																			htmlFor="edit-cost-basis-input"
+																			className="block text-sm text-slate-400 mb-2"
+																		>
+																			Cost Basis Per Token (USD)
+																		</label>
+																		<input
+																			id="edit-cost-basis-input"
+																			type="number"
+																			step="any"
+																			value={editCostBasisPerToken}
+																			onChange={(e) =>
+																				setEditCostBasisPerToken(e.target.value)
+																			}
+																			onWheel={(e) => e.currentTarget.blur()}
+																			placeholder="0.00"
+																			className="w-full px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+																		/>
+																	</div>
+																) : (
+																	<div className="space-y-4">
+																		<div>
+																			<label
+																				htmlFor="edit-total-balance-input"
+																				className="block text-sm text-slate-400 mb-2"
+																			>
+																				Total Balance ({entry.tokenSymbol})
+																			</label>
+																			<input
+																				id="edit-total-balance-input"
+																				type="number"
+																				step="any"
+																				value={editTotalBalance}
+																				onChange={(e) =>
+																					setEditTotalBalance(e.target.value)
+																				}
+																				onWheel={(e) => e.currentTarget.blur()}
+																				placeholder="0.00"
+																				className="w-full px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+																			/>
+																		</div>
+																		<div>
+																			<label
+																				htmlFor="edit-total-cost-input"
+																				className="block text-sm text-slate-400 mb-2"
+																			>
+																				Total Cost (USD)
+																			</label>
+																			<input
+																				id="edit-total-cost-input"
+																				type="number"
+																				step="any"
+																				value={editTotalCost}
+																				onChange={(e) =>
+																					setEditTotalCost(e.target.value)
+																				}
+																				onWheel={(e) => e.currentTarget.blur()}
+																				placeholder="0.00"
+																				className="w-full px-4 py-3 bg-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+																			/>
+																		</div>
+																	</div>
+																)}
+
+																{editCalculatedCostBasis !== null && (
+																	<div className="mt-4 p-4 bg-slate-700 rounded-lg">
+																		<div className="text-sm text-slate-400 mb-1">
+																			Cost Basis Per Token
+																		</div>
+																		<div className="text-2xl font-bold text-cyan-400">
+																			{formatUSD(editCalculatedCostBasis, 6)}
+																		</div>
+																	</div>
+																)}
+
+																<div className="flex gap-2 mt-4">
+																	<button
+																		type="button"
+																		onClick={handleEditSave}
+																		disabled={editCalculatedCostBasis === null}
+																		className="flex-1 py-2 bg-cyan-500 hover:bg-cyan-600 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors"
+																	>
+																		Save
+																	</button>
+																	<button
+																		type="button"
+																		onClick={handleEditCancel}
+																		className="flex-1 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-semibold transition-colors"
+																	>
+																		Cancel
+																	</button>
+																</div>
+															</div>
+														</td>
+													</tr>
+												)}
+											</React.Fragment>
+										);
+									})}
 								</tbody>
 							</table>
 						</div>
