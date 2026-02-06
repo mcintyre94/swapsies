@@ -386,17 +386,26 @@ function SwapPage() {
 										</div>
 										<div className="flex justify-between">
 											<span className="text-slate-400">Estimated Cost</span>
-											<span
-												className={
-													quote.outUsdValue >= quote.inUsdValue
+											{(() => {
+												const cost = quote.inUsdValue - quote.outUsdValue;
+												const costPct =
+													quote.inUsdValue > 0
+														? (cost / quote.inUsdValue) * 100
+														: 0;
+												const colorClass =
+													cost <= 0
 														? "text-green-400"
-														: quote.inUsdValue - quote.outUsdValue > 0.1
-															? "text-yellow-400"
-															: "text-slate-300"
-												}
-											>
-												{formatUSD(quote.inUsdValue - quote.outUsdValue)}
-											</span>
+														: costPct <= 0.1
+															? "text-slate-300"
+															: costPct <= 1
+																? "text-yellow-400"
+																: "text-red-400";
+												return (
+													<span className={colorClass}>
+														{formatUSD(cost)} ({formatNumber(costPct)}%)
+													</span>
+												);
+											})()}
 										</div>
 									</div>
 
