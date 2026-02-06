@@ -355,9 +355,11 @@ function SwapPage() {
 										<span className="text-slate-400">Price Impact</span>
 										<span
 											className={
-												Math.abs(quote.priceImpact) > 0.1
-													? "text-yellow-400"
-													: "text-green-400"
+												Math.abs(quote.priceImpact) <= 0.1
+													? "text-green-400"
+													: Math.abs(quote.priceImpact) <= 1
+														? "text-yellow-400"
+														: "text-red-400"
 											}
 										>
 											{formatNumber(quote.priceImpact, 2)}%
