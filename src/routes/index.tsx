@@ -2,36 +2,18 @@ import { isAddress } from "@solana/kit";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useWalletUiAccount, WalletUiDropdown } from "@wallet-ui/react";
-import { ArrowDownUp, ChevronDown } from "lucide-react";
+import { ArrowDownUp } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import SwapButton from "../components/SwapButton";
 import TokenSelectionModal from "../components/TokenSelectionModal";
 import { getCostBasisForToken } from "../lib/cost-basis";
-import {
-	formatNumber,
-	formatTokenAmount,
-	formatUSD,
-	formatUSDCompact,
-} from "../lib/format";
+import { formatNumber, formatTokenAmount, formatUSD } from "../lib/format";
 import {
 	getOrder,
 	getWalletHoldings,
 	searchTokens,
 } from "../lib/server-functions";
 import type { JupiterOrderResponse, JupiterToken } from "../types/jupiter";
-
-function CompactUSD({ value }: { value: number }) {
-	const isCompact = (value > 0 && value < 0.01) || (value < 0 && value > -0.01);
-	if (!isCompact) return <>{formatUSDCompact(value)}</>;
-	return (
-		<span className="relative group">
-			{formatUSDCompact(value)}
-			<span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-slate-700 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-				{formatUSD(value, 6)}
-			</span>
-		</span>
-	);
-}
 
 interface SwapSearchParams {
 	inputMint?: string;
@@ -57,7 +39,6 @@ function SwapPage() {
 	const [outputToken, setOutputToken] = useState<JupiterToken | null>(null);
 	const [amount, setAmount] = useState("");
 	const [selectMode, setSelectMode] = useState<TokenSelectMode>(null);
-	const [costExpanded, setCostExpanded] = useState(false);
 	const { account } = useWalletUiAccount();
 	const inputTokenButtonRef = useRef<HTMLButtonElement>(null);
 	const outputTokenButtonRef = useRef<HTMLButtonElement>(null);
@@ -235,6 +216,13 @@ function SwapPage() {
 		return amount / 10 ** outputToken.decimals;
 	}, [quote, outputToken]);
 
+	// Calculate input amount from quote
+	const inputAmount = useMemo(() => {
+		if (!quote || !inputToken) return null;
+		const amount = Number.parseInt(quote.inAmount, 10);
+		return amount / 10 ** inputToken.decimals;
+	}, [quote, inputToken]);
+
 	// Get cost basis data for input token
 	const inputTokenCostBasis = useMemo(() => {
 		if (!inputToken) return null;
@@ -277,30 +265,100 @@ function SwapPage() {
 	// Compute full cost breakdown in USD
 	const costBreakdown = useMemo(() => {
 		if (!quote) return null;
+
+		// Determine which token the platform fee is charged in
 		const isInputFee = quote.feeMint === inputToken?.address;
-		const platformFeeUSD =
-			(isInputFee ? quote.inUsdValue : quote.outUsdValue) *
-			(quote.feeBps / 10000);
-		const networkFeeUSD =
-			userFeeLamports && userFeeLamports > 0 && solPrice
-				? (userFeeLamports / 1e9) * solPrice
-				: 0;
+		const feeTokenName = isInputFee ? inputToken?.symbol : outputToken?.symbol;
+
+		// Network fees: only count what the user actually pays
+		const userNetworkFeeLamports =
+			(quote.signatureFeePayer === account?.address
+				? quote.signatureFeeLamports
+				: 0) +
+			(quote.prioritizationFeePayer === account?.address
+				? quote.prioritizationFeeLamports
+				: 0) +
+			(quote.rentFeePayer === account?.address ? quote.rentFeeLamports : 0);
+
 		const networkFeeKnown =
-			userFeeLamports !== null && (userFeeLamports === 0 || solPrice !== null);
-		const priceImpactUSD = quote.inUsdValue - quote.outUsdValue;
-		const totalCostUSD = priceImpactUSD + platformFeeUSD + networkFeeUSD;
+			quote.signatureFeePayer !== undefined &&
+			quote.prioritizationFeePayer !== undefined &&
+			quote.rentFeePayer !== undefined;
+
+		const networkFeeSol =
+			userNetworkFeeLamports > 0 ? userNetworkFeeLamports / 1e9 : 0;
+		const networkFeeUsd =
+			networkFeeSol > 0 && solPrice ? networkFeeSol * solPrice : 0;
+
+		// Swap value change: outUsdValue - inUsdValue
+		// Negative = you lose value (typical), Positive = you gain value (rare)
+		// This INCLUDES all platform fees (already baked into the USD values)
+		const swapValueChange = quote.outUsdValue - quote.inUsdValue;
+
+		// Total cost: swap value change + network fees
+		// Platform fee is NOT added separately (already in swapValueChange)
+		const totalCost = swapValueChange + networkFeeUsd;
+
+		// Total cost as percentage of input value
 		const totalCostPct =
-			quote.inUsdValue > 0 ? (totalCostUSD / quote.inUsdValue) * 100 : 0;
+			quote.inUsdValue > 0 ? (totalCost / quote.inUsdValue) * 100 : 0;
+
+		const isGasless = quote.gasless && userNetworkFeeLamports === 0;
+
 		return {
-			platformFeeUSD,
-			networkFeeUSD,
+			// Platform fee info (for display only, not added to total)
+			platformFeeBps: quote.feeBps,
+			platformFeePct: quote.feeBps / 100,
+			feeTokenName,
+			isInputFee,
+
+			// Network fee info
+			networkFeeSol,
+			networkFeeUsd,
 			networkFeeKnown,
-			priceImpactUSD,
-			totalCostUSD,
-			totalCostPct,
-			isGasless: quote.gasless && userFeeLamports === 0,
+			isGasless,
+
+			// Cost calculations
+			swapValueChange, // outUsdValue - inUsdValue (includes platform fees)
+			totalCost, // swapValueChange + networkFeeUsd
+			totalCostPct, // as % of input
+
+			// Market info
+			priceImpact: quote.priceImpact,
 		};
-	}, [quote, inputToken?.address, userFeeLamports, solPrice]);
+	}, [
+		quote,
+		inputToken?.address,
+		inputToken?.symbol,
+		outputToken?.symbol,
+		account?.address,
+		solPrice,
+	]);
+
+	// Console logging for debugging quote calculations
+	useEffect(() => {
+		if (quote && costBreakdown) {
+			console.group("🔄 Jupiter Quote");
+			console.log("Raw quote:", quote);
+			console.table({
+				"Input Amount": quote.inAmount,
+				"Output Amount": quote.outAmount,
+				"Input USD": `$${quote.inUsdValue.toFixed(2)}`,
+				"Output USD": `$${quote.outUsdValue.toFixed(2)}`,
+				"Fee (bps)": quote.feeBps,
+				"Price Impact": `${quote.priceImpact}%`,
+			});
+			console.table({
+				"Swap Value Change": `$${costBreakdown.swapValueChange.toFixed(4)}`,
+				"Network Fee (SOL)": costBreakdown.networkFeeSol.toFixed(6),
+				"Network Fee (USD)": `$${costBreakdown.networkFeeUsd.toFixed(4)}`,
+				"Total Cost": `$${Math.abs(costBreakdown.totalCost).toFixed(4)}`,
+				"Total Cost %": `${costBreakdown.totalCostPct.toFixed(2)}%`,
+				"Is Gasless": costBreakdown.isGasless,
+			});
+			console.groupEnd();
+		}
+	}, [quote, costBreakdown]);
 
 	// Calculate cost basis metrics
 	const costBasisMetrics = useMemo(() => {
@@ -311,9 +369,8 @@ function SwapPage() {
 
 		const costBasisPerToken = inputTokenCostBasis.costBasisUSD;
 		const totalCostBasis = costBasisPerToken * amountNum;
-		const fees =
-			(costBreakdown?.platformFeeUSD ?? 0) +
-			(costBreakdown?.networkFeeUSD ?? 0);
+		// Total fees are just network fees (platform fees already in outUsdValue)
+		const fees = costBreakdown?.networkFeeUsd ?? 0;
 		const realizedGainLoss = quote.outUsdValue - fees - totalCostBasis;
 		const gainLossPercentage = (realizedGainLoss / totalCostBasis) * 100;
 
@@ -471,277 +528,142 @@ function SwapPage() {
 							</div>
 						</div>
 
-						{/* Quote details */}
-						{quote && (
-							<>
-								<div className="mt-6 p-3 sm:p-4 bg-slate-700/50 rounded-lg space-y-2 text-sm">
-									<div className="flex justify-between">
-										<span className="text-slate-400">Rate</span>
-										<span>
-											1 {inputToken?.symbol} ≈{" "}
-											{formatTokenAmount(
-												(Number.parseFloat(quote.outAmount) /
-													Number.parseFloat(quote.inAmount)) *
-													(10 ** (inputToken?.decimals || 0) /
-														10 ** (outputToken?.decimals || 0)),
-											)}{" "}
-											{outputToken?.symbol}
-										</span>
-									</div>
-									<div className="flex justify-between">
-										<span className="text-slate-400">Price Impact</span>
-										<span
-											className={
-												Math.abs(quote.priceImpact) <= 0.1
-													? "text-green-400"
-													: Math.abs(quote.priceImpact) <= 1
-														? "text-yellow-400"
-														: "text-red-400"
-											}
-										>
-											{formatNumber(quote.priceImpact, 2)}%
-										</span>
-									</div>
-									<div className="flex justify-between">
-										<span className="text-slate-400">Input Value</span>
-										<span>{formatUSD(quote.inUsdValue)}</span>
-									</div>
-									<div className="flex justify-between">
-										<span className="text-slate-400">Output Value</span>
-										<span>{formatUSD(quote.outUsdValue)}</span>
-									</div>
-
-									{/* Fees & Costs */}
-									<div className="pt-2 mt-2 border-t border-slate-600/50 space-y-2">
-										<div className="flex justify-between">
-											<span className="text-slate-400">Platform Fee</span>
-											<span className="text-slate-300">
-												{(() => {
-													const isInputFee =
-														quote.feeMint === inputToken?.address;
-													const feeToken = isInputFee
-														? inputToken
-														: outputToken;
-													const rawAmount = isInputFee
-														? quote.inAmount
-														: quote.outAmount;
-													const feeAmount =
-														(Number.parseInt(rawAmount, 10) /
-															10 ** (feeToken?.decimals || 0)) *
-														(quote.feeBps / 10000);
-													const feeDisplay =
-														feeAmount > 0 && feeAmount < 0.001
-															? "<0.001"
-															: formatTokenAmount(feeAmount);
-													return (
-														<>
-															{formatNumber(quote.feeBps / 100, 2)}% (
-															<span className="relative group">
-																{feeDisplay}
-																{feeAmount > 0 && feeAmount < 0.001 && (
-																	<span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-slate-700 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-																		{formatTokenAmount(feeAmount)}{" "}
-																		{feeToken?.symbol}
-																	</span>
-																)}
-															</span>{" "}
-															{feeToken?.symbol})
-														</>
-													);
-												})()}
-											</span>
-										</div>
-										<div className="flex justify-between">
-											<span className="text-slate-400">Network Fee</span>
-											<span className="text-slate-300">
-												{(() => {
-													if (userFeeLamports === null) {
-														return (
-															<span className="text-slate-500 text-sm">
-																Unable to estimate
-															</span>
-														);
-													}
-													if (quote.gasless && userFeeLamports === 0) {
-														return "Gasless";
-													}
-													const feeSol = userFeeLamports / 1e9;
-													const feeDisplay =
-														feeSol > 0 && feeSol < 0.001
-															? "<0.001"
-															: formatTokenAmount(feeSol);
-													return (
-														<>
-															<span className="relative group">
-																{feeDisplay}
-																{feeSol > 0 && feeSol < 0.001 && (
-																	<span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-xs bg-slate-700 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-																		{formatTokenAmount(feeSol)} SOL
-																	</span>
-																)}
-															</span>{" "}
-															SOL
-														</>
-													);
-												})()}
-											</span>
-										</div>
-										{costBreakdown && (
-											<div>
-												<button
-													type="button"
-													onClick={() => setCostExpanded((v) => !v)}
-													className="flex justify-between items-center w-full text-left"
-												>
-													<span className="text-slate-400 flex items-center gap-1">
-														Estimated Cost
-														<ChevronDown
-															className={`w-3.5 h-3.5 transition-transform ${costExpanded ? "rotate-180" : ""}`}
-														/>
-													</span>
-													<span
-														className={
-															costBreakdown.totalCostUSD <= 0
-																? "text-green-400"
-																: costBreakdown.totalCostPct <= 0.1
-																	? "text-slate-300"
-																	: costBreakdown.totalCostPct <= 1
-																		? "text-yellow-400"
-																		: "text-red-400"
-														}
-													>
-														<CompactUSD value={costBreakdown.totalCostUSD} /> (
-														{formatNumber(costBreakdown.totalCostPct)}%)
-													</span>
-												</button>
-												<div
-													className={`grid transition-[grid-template-rows] duration-200 ${costExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
-												>
-													<div className="overflow-hidden">
-														<div className="pt-2 pl-3 space-y-1.5">
-															<div className="flex justify-between text-xs">
-																<span className="text-slate-400">
-																	Price Impact
-																</span>
-																<span className="text-slate-300">
-																	<CompactUSD
-																		value={costBreakdown.priceImpactUSD}
-																	/>
-																</span>
-															</div>
-															<div className="flex justify-between text-xs">
-																<span className="text-slate-400">
-																	Platform Fee
-																</span>
-																<span className="text-slate-300">
-																	<CompactUSD
-																		value={costBreakdown.platformFeeUSD}
-																	/>
-																</span>
-															</div>
-															<div className="flex justify-between text-xs">
-																<span className="text-slate-400">
-																	Network Fee
-																</span>
-																<span className="text-slate-300">
-																	{costBreakdown.isGasless ? (
-																		"Gasless"
-																	) : userFeeLamports === null ? (
-																		"Unable to estimate"
-																	) : !costBreakdown.networkFeeKnown ? (
-																		"..."
-																	) : (
-																		<CompactUSD
-																			value={costBreakdown.networkFeeUSD}
-																		/>
-																	)}
-																</span>
-															</div>
-														</div>
-													</div>
-												</div>
-											</div>
-										)}
-									</div>
-
-									{/* Cost Basis Section */}
-									<div className="pt-2 mt-2 border-t border-slate-600/50 space-y-2">
-										{inputTokenCostBasis && costBasisMetrics ? (
-											<>
-												<div className="flex justify-between">
-													<span className="text-slate-400">Cost Basis</span>
-													<span className="text-sm">
-														{formatUSD(costBasisMetrics.costBasisPerToken, 4)}{" "}
-														per {inputToken?.symbol}
-													</span>
-												</div>
-												<div className="flex justify-between">
-													<span className="text-slate-400">
-														Total Cost Basis
-													</span>
-													<span>
-														{formatUSD(costBasisMetrics.totalCostBasis)}
-													</span>
-												</div>
-												<div className="flex justify-between items-center">
-													<span className="text-slate-400">
-														Estimated Gain/Loss
-													</span>
-													<div className="text-right">
-														<div
-															className={
-																costBasisMetrics.realizedGainLoss >= 0
-																	? "text-green-400"
-																	: "text-red-400"
-															}
-														>
-															{costBasisMetrics.realizedGainLoss >= 0
-																? "+"
-																: ""}
-															{formatUSD(costBasisMetrics.realizedGainLoss)}
-														</div>
-														<div
-															className={`text-xs ${
-																costBasisMetrics.realizedGainLoss >= 0
-																	? "text-green-400/70"
-																	: "text-red-400/70"
-															}`}
-														>
-															(
-															{costBasisMetrics.realizedGainLoss >= 0
-																? "+"
-																: ""}
-															{formatNumber(
-																costBasisMetrics.gainLossPercentage,
-																2,
-															)}
-															%)
-														</div>
-													</div>
-												</div>
-											</>
-										) : inputToken ? (
-											<div className="flex justify-between items-center">
-												<span className="text-slate-400">Cost Basis</span>
-												<Link
-													to="/cost-basis"
-													className="text-cyan-400 hover:text-cyan-300 transition-colors text-sm underline"
-												>
-													Add cost basis
-												</Link>
-											</div>
-										) : null}
-									</div>
+						{/* Quote Details - Always Visible */}
+						{quote && costBreakdown && (
+							<div className="mt-6 p-3 sm:p-4 bg-slate-700/50 rounded-lg space-y-2 text-sm">
+								{/* Exchange Rate */}
+								<div className="flex justify-between">
+									<span className="text-slate-400">Rate</span>
+									<span className="text-white">
+										1 {inputToken?.symbol} ≈{" "}
+										{formatNumber(
+											outputAmount && inputAmount
+												? outputAmount / inputAmount
+												: 0,
+											6,
+										)}{" "}
+										{outputToken?.symbol}
+									</span>
 								</div>
 
-								{quote.errorCode && (
-									<div className="mt-4 p-4 bg-red-900/20 border border-red-900/50 rounded-lg">
-										<p className="text-red-400">
-											{quote.errorMessage || "Failed to get quote"}
-										</p>
+								{/* USD Values - Compact One-Line Display */}
+								<div className="flex justify-between">
+									<span className="text-slate-400">Value</span>
+									<span className="text-white">
+										{formatUSD(quote.inUsdValue)} →{" "}
+										{formatUSD(quote.outUsdValue)}
+									</span>
+								</div>
+
+								{/* Price Impact */}
+								<div className="flex justify-between">
+									<span className="text-slate-400">Price Impact</span>
+									<span
+										className={
+											costBreakdown.priceImpact > -1
+												? "text-green-400"
+												: costBreakdown.priceImpact > -3
+													? "text-yellow-400"
+													: "text-red-400"
+										}
+									>
+										{-costBreakdown.priceImpact < 0 && "-"}
+										{formatNumber(Math.abs(-costBreakdown.priceImpact), 2)}%
+									</span>
+								</div>
+
+								{/* Estimated Cost */}
+								<div className="flex justify-between">
+									<div className="flex flex-col">
+										<span className="text-slate-400">Estimated Cost</span>
+										<span className="text-xs text-slate-500 mt-0.5">
+											Including Jupiter fee {costBreakdown.platformFeePct}%
+										</span>
 									</div>
-								)}
-							</>
+									<span
+										className={
+											costBreakdown.swapValueChange < 0
+												? "text-red-400"
+												: "text-green-400"
+										}
+									>
+										{costBreakdown.swapValueChange >= 0 && "-"}
+										{Math.abs(costBreakdown.swapValueChange) < 0.01
+											? "<$0.01"
+											: formatUSD(Math.abs(costBreakdown.swapValueChange), 2)}
+									</span>
+								</div>
+
+								{/* Cost Basis Section - Keep as is */}
+								<div className="pt-2 mt-2 border-t border-slate-600/50 space-y-2">
+									{inputTokenCostBasis && costBasisMetrics ? (
+										<>
+											<div className="flex justify-between">
+												<span className="text-slate-400">Cost Basis</span>
+												<span className="text-sm">
+													{formatUSD(costBasisMetrics.costBasisPerToken, 4)} per{" "}
+													{inputToken?.symbol}
+												</span>
+											</div>
+											<div className="flex justify-between">
+												<span className="text-slate-400">Total Cost Basis</span>
+												<span>
+													{formatUSD(costBasisMetrics.totalCostBasis)}
+												</span>
+											</div>
+											<div className="flex justify-between items-center">
+												<span className="text-slate-400">
+													Estimated Gain/Loss
+												</span>
+												<div className="text-right">
+													<div
+														className={
+															costBasisMetrics.realizedGainLoss >= 0
+																? "text-green-400"
+																: "text-red-400"
+														}
+													>
+														{costBasisMetrics.realizedGainLoss >= 0 ? "+" : ""}
+														{formatUSD(costBasisMetrics.realizedGainLoss)}
+													</div>
+													<div
+														className={`text-xs ${
+															costBasisMetrics.realizedGainLoss >= 0
+																? "text-green-400/70"
+																: "text-red-400/70"
+														}`}
+													>
+														({costBasisMetrics.realizedGainLoss >= 0 ? "+" : ""}
+														{formatNumber(
+															costBasisMetrics.gainLossPercentage,
+															2,
+														)}
+														%)
+													</div>
+												</div>
+											</div>
+										</>
+									) : inputToken ? (
+										<div className="flex justify-between items-center">
+											<span className="text-slate-400">Cost Basis</span>
+											<Link
+												to="/cost-basis"
+												className="text-cyan-400 hover:text-cyan-300 transition-colors text-sm underline"
+											>
+												Add cost basis
+											</Link>
+										</div>
+									) : null}
+								</div>
+							</div>
+						)}
+
+						{quote?.errorCode && (
+							<div className="mt-4 p-4 bg-red-900/20 border border-red-900/50 rounded-lg">
+								<p className="text-red-400">
+									{quote.errorMessage || "Failed to get quote"}
+								</p>
+							</div>
 						)}
 
 						{quoteError && (
