@@ -567,7 +567,8 @@ function SwapPage() {
 													: "text-red-400"
 										}
 									>
-										{formatNumber(costBreakdown.priceImpact, 2)}%
+										{-costBreakdown.priceImpact < 0 && "-"}
+										{formatNumber(Math.abs(-costBreakdown.priceImpact), 2)}%
 									</span>
 								</div>
 
