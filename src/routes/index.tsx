@@ -335,31 +335,6 @@ function SwapPage() {
 		solPrice,
 	]);
 
-	// Console logging for debugging quote calculations
-	useEffect(() => {
-		if (quote && costBreakdown) {
-			console.group("🔄 Jupiter Quote");
-			console.log("Raw quote:", quote);
-			console.table({
-				"Input Amount": quote.inAmount,
-				"Output Amount": quote.outAmount,
-				"Input USD": `$${quote.inUsdValue.toFixed(2)}`,
-				"Output USD": `$${quote.outUsdValue.toFixed(2)}`,
-				"Fee (bps)": quote.feeBps,
-				"Price Impact": `${quote.priceImpact}%`,
-			});
-			console.table({
-				"Swap Value Change": `$${costBreakdown.swapValueChange.toFixed(4)}`,
-				"Network Fee (SOL)": costBreakdown.networkFeeSol.toFixed(6),
-				"Network Fee (USD)": `$${costBreakdown.networkFeeUsd.toFixed(4)}`,
-				"Total Cost": `$${Math.abs(costBreakdown.totalCost).toFixed(4)}`,
-				"Total Cost %": `${costBreakdown.totalCostPct.toFixed(2)}%`,
-				"Is Gasless": costBreakdown.isGasless,
-			});
-			console.groupEnd();
-		}
-	}, [quote, costBreakdown]);
-
 	// Calculate cost basis metrics
 	const costBasisMetrics = useMemo(() => {
 		if (!inputTokenCostBasis || !quote || !debouncedAmount) return null;
