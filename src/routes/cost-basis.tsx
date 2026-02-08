@@ -85,6 +85,38 @@ function CostBasisPage() {
 		setSavedCostBasis(entries);
 	}, []);
 
+	// Fetch current prices for all saved tokens
+	const savedTokenAddresses = useMemo(
+		() => savedCostBasis.map((entry) => entry.tokenAddress),
+		[savedCostBasis],
+	);
+
+	const { data: tokenPriceMap } = useQuery({
+		queryKey: ["token-prices", savedTokenAddresses],
+		queryFn: async ({ signal }) => {
+			const BATCH_SIZE = 100;
+			const allTokens: JupiterToken[] = [];
+			for (let i = 0; i < savedTokenAddresses.length; i += BATCH_SIZE) {
+				const batch = savedTokenAddresses.slice(i, i + BATCH_SIZE);
+				const tokens = await batchSearchTokens({
+					data: { mintAddresses: batch },
+					signal,
+				});
+				allTokens.push(...tokens);
+			}
+			const priceMap = new Map<string, number>();
+			for (const token of allTokens) {
+				if (token.usdPrice !== undefined) {
+					priceMap.set(token.address, token.usdPrice);
+				}
+			}
+			return priceMap;
+		},
+		enabled: savedTokenAddresses.length > 0,
+		staleTime: 60 * 1000,
+		refetchInterval: 60 * 1000,
+	});
+
 	// Focus search input after saving (when selectedToken becomes null and flag is set)
 	useEffect(() => {
 		if (shouldFocusSearch && !selectedToken) {
@@ -514,6 +546,12 @@ function CostBasisPage() {
 											Cost Basis
 										</th>
 										<th className="text-right py-3 px-2 text-sm font-medium text-slate-400">
+											Current Price
+										</th>
+										<th className="text-right py-3 px-2 text-sm font-medium text-slate-400">
+											Change
+										</th>
+										<th className="text-right py-3 px-2 text-sm font-medium text-slate-400">
 											Actions
 										</th>
 									</tr>
@@ -521,6 +559,13 @@ function CostBasisPage() {
 								<tbody>
 									{savedCostBasis.map((entry) => {
 										const isEditing = editingToken === entry.tokenAddress;
+										const currentPrice = tokenPriceMap?.get(entry.tokenAddress);
+										const percentChange =
+											currentPrice !== undefined && entry.costBasisUSD !== 0
+												? ((currentPrice - entry.costBasisUSD) /
+														entry.costBasisUSD) *
+													100
+												: null;
 										return (
 											<React.Fragment key={entry.tokenAddress}>
 												<tr className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors">
@@ -560,6 +605,27 @@ function CostBasisPage() {
 													</td>
 													<td className="py-3 px-2 text-right font-mono">
 														{formatUSD(entry.costBasisUSD, 6)}
+													</td>
+													<td className="py-3 px-2 text-right font-mono">
+														{currentPrice !== undefined
+															? formatUSD(currentPrice, 6)
+															: "-"}
+													</td>
+													<td className="py-3 px-2 text-right font-mono">
+														{percentChange !== null ? (
+															<span
+																className={
+																	percentChange >= 0
+																		? "text-green-400"
+																		: "text-red-400"
+																}
+															>
+																{percentChange >= 0 ? "+" : ""}
+																{percentChange.toFixed(2)}%
+															</span>
+														) : (
+															"-"
+														)}
 													</td>
 													<td className="py-3 px-2">
 														<div className="flex items-center justify-end">
@@ -624,7 +690,7 @@ function CostBasisPage() {
 												</tr>
 												{isEditing && (
 													<tr className="border-b border-slate-700/50">
-														<td colSpan={3} className="px-2 py-4">
+														<td colSpan={5} className="px-2 py-4">
 															<div className="bg-slate-700/50 rounded-lg p-4">
 																<div className="flex gap-2 mb-4">
 																	<button
