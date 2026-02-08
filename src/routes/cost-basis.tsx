@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
+	ArrowDown,
 	ArrowRightLeft,
+	ArrowUp,
+	ArrowUpDown,
 	Check,
 	ExternalLink,
 	Loader2,
@@ -33,6 +36,8 @@ export const Route = createFileRoute("/cost-basis")({
 });
 
 type InputMode = "per-token" | "total";
+type SortKey = "token" | "costBasis" | "price" | "change";
+type SortDirection = "asc" | "desc";
 
 function useDebouncedValue<T>(value: T, delay: number): T {
 	const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -62,6 +67,10 @@ function CostBasisPage() {
 	const [totalCost, setTotalCost] = useState("");
 	const [savedCostBasis, setSavedCostBasis] = useState<StoredCostBasis[]>([]);
 	const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+
+	// Sort state
+	const [sortKey, setSortKey] = useState<SortKey>("token");
+	const [sortDir, setSortDir] = useState<SortDirection>("asc");
 
 	// Edit state management
 	const [editingToken, setEditingToken] = useState<string | null>(null);
@@ -116,6 +125,66 @@ function CostBasisPage() {
 		staleTime: 60 * 1000,
 		refetchInterval: 60 * 1000,
 	});
+
+	const handleSort = (key: SortKey) => {
+		if (sortKey === key) {
+			setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+		} else {
+			setSortKey(key);
+			setSortDir("asc");
+		}
+	};
+
+	const sortIcon = (key: SortKey) =>
+		sortKey === key ? (
+			sortDir === "asc" ? (
+				<ArrowUp className="w-3 h-3" />
+			) : (
+				<ArrowDown className="w-3 h-3" />
+			)
+		) : (
+			<ArrowUpDown className="w-3 h-3 opacity-50" />
+		);
+
+	const sortedEntries = useMemo(() => {
+		return [...savedCostBasis].sort((a, b) => {
+			let comparison = 0;
+
+			switch (sortKey) {
+				case "token":
+					comparison = a.tokenName.localeCompare(b.tokenName);
+					break;
+				case "costBasis":
+					comparison = a.costBasisUSD - b.costBasisUSD;
+					break;
+				case "price": {
+					const priceA = tokenPriceMap?.get(a.tokenAddress);
+					const priceB = tokenPriceMap?.get(b.tokenAddress);
+					if (priceA === undefined && priceB === undefined) return 0;
+					if (priceA === undefined) return 1;
+					if (priceB === undefined) return -1;
+					comparison = priceA - priceB;
+					break;
+				}
+				case "change": {
+					const getChange = (entry: StoredCostBasis) => {
+						const price = tokenPriceMap?.get(entry.tokenAddress);
+						if (price === undefined || entry.costBasisUSD === 0) return null;
+						return ((price - entry.costBasisUSD) / entry.costBasisUSD) * 100;
+					};
+					const changeA = getChange(a);
+					const changeB = getChange(b);
+					if (changeA === null && changeB === null) return 0;
+					if (changeA === null) return 1;
+					if (changeB === null) return -1;
+					comparison = changeA - changeB;
+					break;
+				}
+			}
+
+			return sortDir === "asc" ? comparison : -comparison;
+		});
+	}, [savedCostBasis, sortKey, sortDir, tokenPriceMap]);
 
 	// Focus search input after saving (when selectedToken becomes null and flag is set)
 	useEffect(() => {
@@ -539,17 +608,45 @@ function CostBasisPage() {
 							<table className="w-full">
 								<thead>
 									<tr className="border-b border-slate-700">
-										<th className="text-left py-3 px-2 text-sm font-medium text-slate-400">
-											Token
+										<th className="text-left py-3 px-2">
+											<button
+												type="button"
+												onClick={() => handleSort("token")}
+												className="flex items-center gap-1 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors"
+											>
+												Token
+												{sortIcon("token")}
+											</button>
 										</th>
-										<th className="text-right py-3 px-2 text-sm font-medium text-slate-400">
-											Cost Basis
+										<th className="text-right py-3 px-2">
+											<button
+												type="button"
+												onClick={() => handleSort("costBasis")}
+												className="ml-auto flex items-center gap-1 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors"
+											>
+												Cost Basis
+												{sortIcon("costBasis")}
+											</button>
 										</th>
-										<th className="text-right py-3 px-2 text-sm font-medium text-slate-400">
-											Current Price
+										<th className="text-right py-3 px-2">
+											<button
+												type="button"
+												onClick={() => handleSort("price")}
+												className="ml-auto flex items-center gap-1 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors"
+											>
+												Current Price
+												{sortIcon("price")}
+											</button>
 										</th>
-										<th className="text-right py-3 px-2 text-sm font-medium text-slate-400">
-											Change
+										<th className="text-right py-3 px-2">
+											<button
+												type="button"
+												onClick={() => handleSort("change")}
+												className="ml-auto flex items-center gap-1 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors"
+											>
+												Change
+												{sortIcon("change")}
+											</button>
 										</th>
 										<th className="text-right py-3 px-2 text-sm font-medium text-slate-400">
 											Actions
@@ -557,7 +654,7 @@ function CostBasisPage() {
 									</tr>
 								</thead>
 								<tbody>
-									{savedCostBasis.map((entry) => {
+									{sortedEntries.map((entry) => {
 										const isEditing = editingToken === entry.tokenAddress;
 										const currentPrice = tokenPriceMap?.get(entry.tokenAddress);
 										const percentChange =
