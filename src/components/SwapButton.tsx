@@ -4,21 +4,31 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { UiWalletAccount } from "@wallet-ui/react";
 import {
 	AlertCircle,
+	ArrowRight,
 	ArrowRightLeft,
 	CheckCircle2,
 	Loader2,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
+import { formatTokenAmount } from "@/lib/format";
 import { executeSwap } from "@/lib/server-functions";
 
 type Props = {
 	account: UiWalletAccount;
 	transaction: string;
 	requestId: string;
+	inputToken: { decimals: number; logo?: string; symbol: string };
+	outputToken: { decimals: number; logo?: string; symbol: string };
 };
 
-function SwapButtonInner({ account, transaction, requestId }: Props) {
+function SwapButtonInner({
+	account,
+	transaction,
+	requestId,
+	inputToken,
+	outputToken,
+}: Props) {
 	const signTransaction = useSignTransaction(account, "solana:mainnet");
 	const base64Codec = useMemo(() => getBase64Codec(), []);
 	const queryClient = useQueryClient();
@@ -28,6 +38,10 @@ function SwapButtonInner({ account, transaction, requestId }: Props) {
 	const [executionError, setExecutionError] = useState<string | null>(null);
 	const [executionSuccess, setExecutionSuccess] = useState<{
 		signature: string;
+		inputAmount: number;
+		outputAmount: number;
+		inputToken: { logo?: string; symbol: string };
+		outputToken: { logo?: string; symbol: string };
 	} | null>(null);
 
 	const transactionBytes = useMemo(() => {
@@ -67,7 +81,25 @@ function SwapButtonInner({ account, transaction, requestId }: Props) {
 				// Check if response is success (has signature field)
 				if ("signature" in result) {
 					// SUCCESS!
-					setExecutionSuccess({ signature: result.signature });
+					const inputAmountUI =
+						Number.parseInt(result.inputAmountResult, 10) /
+						10 ** inputToken.decimals;
+					const outputAmountUI =
+						Number.parseInt(result.outputAmountResult, 10) /
+						10 ** outputToken.decimals;
+					setExecutionSuccess({
+						signature: result.signature,
+						inputAmount: inputAmountUI,
+						outputAmount: outputAmountUI,
+						inputToken: {
+							logo: inputToken.logo,
+							symbol: inputToken.symbol,
+						},
+						outputToken: {
+							logo: outputToken.logo,
+							symbol: outputToken.symbol,
+						},
+					});
 					setIsExecuting(false);
 
 					// Refresh wallet balances to show updated amounts
@@ -119,6 +151,8 @@ function SwapButtonInner({ account, transaction, requestId }: Props) {
 		requestId,
 		base64Codec.decode,
 		queryClient,
+		inputToken,
+		outputToken,
 	]);
 
 	return (
@@ -146,23 +180,52 @@ function SwapButtonInner({ account, transaction, requestId }: Props) {
 
 			{executionSuccess && (
 				<output
-					className="w-full py-3 px-4 bg-green-900/20 border border-green-900/50 rounded-xl block"
+					className="w-full py-4 px-4 bg-green-900/20 border border-green-900/50 rounded-xl block"
 					aria-live="polite"
 				>
-					<p className="text-green-400 font-medium text-center flex items-center justify-center gap-2">
+					<div className="flex items-center justify-center gap-2 text-green-400 font-medium mb-3">
 						<CheckCircle2 className="w-5 h-5" aria-hidden="true" />
-						<span>
-							Swap successful!{" "}
-							<a
-								href={`https://orbmarkets.io/tx/${executionSuccess.signature}`}
-								target="_blank"
-								rel="noopener noreferrer"
-								className="underline hover:text-green-300"
-							>
-								View transaction
-							</a>
-						</span>
-					</p>
+						<span>Swap successful!</span>
+					</div>
+					<div className="flex items-center justify-center gap-3 text-sm">
+						<div className="flex items-center gap-1.5">
+							{executionSuccess.inputToken.logo && (
+								<img
+									src={executionSuccess.inputToken.logo}
+									alt={executionSuccess.inputToken.symbol}
+									className="w-5 h-5 rounded-full"
+								/>
+							)}
+							<span className="font-mono">
+								{formatTokenAmount(executionSuccess.inputAmount)}{" "}
+								{executionSuccess.inputToken.symbol}
+							</span>
+						</div>
+						<ArrowRight className="w-4 h-4 text-slate-400" aria-hidden="true" />
+						<div className="flex items-center gap-1.5">
+							{executionSuccess.outputToken.logo && (
+								<img
+									src={executionSuccess.outputToken.logo}
+									alt={executionSuccess.outputToken.symbol}
+									className="w-5 h-5 rounded-full"
+								/>
+							)}
+							<span className="font-mono">
+								{formatTokenAmount(executionSuccess.outputAmount)}{" "}
+								{executionSuccess.outputToken.symbol}
+							</span>
+						</div>
+					</div>
+					<div className="mt-2 text-center">
+						<a
+							href={`https://orbmarkets.io/tx/${executionSuccess.signature}`}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="text-green-400/70 hover:text-green-300 text-xs underline"
+						>
+							View transaction
+						</a>
+					</div>
 				</output>
 			)}
 
