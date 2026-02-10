@@ -79,16 +79,19 @@ export default function TokenSelectionModal({
 
 				if (nonZeroHoldings.length === 0) return [];
 
-				// Extract mint addresses (limit to 100 for Jupiter API)
-				const mintAddresses = nonZeroHoldings
-					.map((h) => h.mintAddress)
-					.slice(0, 100);
+				const mintAddresses = nonZeroHoldings.map((h) => h.mintAddress);
 
-				// Fetch metadata
-				const tokens = await batchSearchTokens({
-					data: { mintAddresses },
-					signal,
-				});
+				// Fetch metadata in chunks of 100 (Jupiter API limit)
+				const BATCH_SIZE = 100;
+				const tokens = [];
+				for (let i = 0; i < mintAddresses.length; i += BATCH_SIZE) {
+					const chunk = mintAddresses.slice(i, i + BATCH_SIZE);
+					const result = await batchSearchTokens({
+						data: { mintAddresses: chunk },
+						signal,
+					});
+					tokens.push(...result);
+				}
 
 				// Enrich with holding data and calculate USD values
 				const enriched = tokens
