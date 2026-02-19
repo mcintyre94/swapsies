@@ -5,6 +5,9 @@ export interface StoredCostBasis {
 	tokenSymbol: string;
 	tokenLogo?: string;
 	isVerified?: boolean;
+	inputMode?: "per-token" | "total";
+	totalBalance?: number;
+	totalCost?: number;
 }
 
 export const COST_BASIS_STORAGE_KEY = "costBasisData";

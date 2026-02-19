@@ -57,7 +57,7 @@ function CostBasisPage() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 	const [selectedToken, setSelectedToken] = useState<JupiterToken | null>(null);
-	const [inputMode, setInputMode] = useState<InputMode>("per-token");
+	const [inputMode, setInputMode] = useState<InputMode>("total");
 	const [selectedTokenIndex, setSelectedTokenIndex] = useState(0);
 	const searchInputRef = useRef<HTMLInputElement>(null);
 	const [shouldFocusSearch, setShouldFocusSearch] = useState(false);
@@ -74,7 +74,7 @@ function CostBasisPage() {
 
 	// Edit state management
 	const [editingToken, setEditingToken] = useState<string | null>(null);
-	const [editInputMode, setEditInputMode] = useState<InputMode>("per-token");
+	const [editInputMode, setEditInputMode] = useState<InputMode>("total");
 	const [editCostBasisPerToken, setEditCostBasisPerToken] = useState("");
 	const [editTotalBalance, setEditTotalBalance] = useState("");
 	const [editTotalCost, setEditTotalCost] = useState("");
@@ -294,6 +294,11 @@ function CostBasisPage() {
 
 		const costBasisData = getCostBasisData();
 
+		const totalBalanceNum =
+			inputMode === "total" ? Number.parseFloat(totalBalance) : undefined;
+		const totalCostNum =
+			inputMode === "total" ? Number.parseFloat(totalCost) : undefined;
+
 		costBasisData[selectedToken.address] = {
 			tokenAddress: selectedToken.address,
 			costBasisUSD: calculatedCostBasis,
@@ -301,6 +306,15 @@ function CostBasisPage() {
 			tokenSymbol: selectedToken.symbol,
 			tokenLogo: selectedToken.logo,
 			isVerified: selectedToken.isVerified,
+			inputMode,
+			totalBalance:
+				totalBalanceNum !== undefined && !Number.isNaN(totalBalanceNum)
+					? totalBalanceNum
+					: undefined,
+			totalCost:
+				totalCostNum !== undefined && !Number.isNaN(totalCostNum)
+					? totalCostNum
+					: undefined,
 		};
 
 		const success = saveCostBasisData(costBasisData);
@@ -348,10 +362,21 @@ function CostBasisPage() {
 
 	const handleEditStart = (entry: StoredCostBasis) => {
 		setEditingToken(entry.tokenAddress);
-		setEditInputMode("per-token");
-		setEditCostBasisPerToken(entry.costBasisUSD.toString());
-		setEditTotalBalance("");
-		setEditTotalCost("");
+		const mode = entry.inputMode ?? "total";
+		setEditInputMode(mode);
+		if (
+			mode === "total" &&
+			entry.totalBalance !== undefined &&
+			entry.totalCost !== undefined
+		) {
+			setEditCostBasisPerToken("");
+			setEditTotalBalance(entry.totalBalance.toString());
+			setEditTotalCost(entry.totalCost.toString());
+		} else {
+			setEditCostBasisPerToken(entry.costBasisUSD.toString());
+			setEditTotalBalance("");
+			setEditTotalCost("");
+		}
 	};
 
 	const handleEditSave = () => {
@@ -361,10 +386,29 @@ function CostBasisPage() {
 		const existingEntry = costBasisData[editingToken];
 
 		if (existingEntry) {
-			// Preserve existing token metadata, only update cost basis
+			const editTotalBalanceNum =
+				editInputMode === "total"
+					? Number.parseFloat(editTotalBalance)
+					: undefined;
+			const editTotalCostNum =
+				editInputMode === "total"
+					? Number.parseFloat(editTotalCost)
+					: undefined;
+
+			// Preserve existing token metadata, only update cost basis and input data
 			costBasisData[editingToken] = {
 				...existingEntry,
 				costBasisUSD: editCalculatedCostBasis,
+				inputMode: editInputMode,
+				totalBalance:
+					editTotalBalanceNum !== undefined &&
+					!Number.isNaN(editTotalBalanceNum)
+						? editTotalBalanceNum
+						: undefined,
+				totalCost:
+					editTotalCostNum !== undefined && !Number.isNaN(editTotalCostNum)
+						? editTotalCostNum
+						: undefined,
 			};
 
 			const success = saveCostBasisData(costBasisData);
@@ -394,13 +438,7 @@ function CostBasisPage() {
 	const handleExport = () => {
 		const costBasisData = getCostBasisData();
 
-		// Transform to minimal format: { mint: costBasis, ... }
-		const minimalData: Record<string, number> = {};
-		for (const [address, entry] of Object.entries(costBasisData)) {
-			minimalData[address] = entry.costBasisUSD;
-		}
-
-		const csvContent = generateCostBasisCSV(minimalData);
+		const csvContent = generateCostBasisCSV(costBasisData);
 		const blob = new Blob([csvContent], { type: "text/csv" });
 		const url = URL.createObjectURL(blob);
 
@@ -476,27 +514,35 @@ function CostBasisPage() {
 				const reconstructedData: Record<string, StoredCostBasis> = {};
 				const missingTokens: string[] = [];
 
-				for (const [mintAddress, costBasis] of Object.entries(costBasisMap)) {
+				for (const [mintAddress, entry] of Object.entries(costBasisMap)) {
 					const token = tokenMap.get(mintAddress);
+					const hasTotal =
+						entry.totalBalance !== undefined && entry.totalCost !== undefined;
 
 					if (token) {
 						reconstructedData[mintAddress] = {
 							tokenAddress: mintAddress,
-							costBasisUSD: costBasis,
+							costBasisUSD: entry.costBasis,
 							tokenName: token.name,
 							tokenSymbol: token.symbol,
 							tokenLogo: token.logo,
 							isVerified: token.isVerified,
+							inputMode: hasTotal ? "total" : undefined,
+							totalBalance: entry.totalBalance,
+							totalCost: entry.totalCost,
 						};
 					} else {
 						// Token not found in Jupiter - save with placeholder metadata
 						missingTokens.push(mintAddress);
 						reconstructedData[mintAddress] = {
 							tokenAddress: mintAddress,
-							costBasisUSD: costBasis,
+							costBasisUSD: entry.costBasis,
 							tokenName: "Unknown Token",
 							tokenSymbol: "???",
 							tokenLogo: undefined,
+							inputMode: hasTotal ? "total" : undefined,
+							totalBalance: entry.totalBalance,
+							totalCost: entry.totalCost,
 						};
 					}
 				}
@@ -793,19 +839,6 @@ function CostBasisPage() {
 																	<button
 																		type="button"
 																		onClick={() =>
-																			handleEditModeChange("per-token")
-																		}
-																		className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-																			editInputMode === "per-token"
-																				? "bg-cyan-500 text-white"
-																				: "bg-slate-700 text-slate-400 hover:text-white"
-																		}`}
-																	>
-																		Cost Per Token
-																	</button>
-																	<button
-																		type="button"
-																		onClick={() =>
 																			handleEditModeChange("total")
 																		}
 																		className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
@@ -815,6 +848,19 @@ function CostBasisPage() {
 																		}`}
 																	>
 																		Total Balance + Cost
+																	</button>
+																	<button
+																		type="button"
+																		onClick={() =>
+																			handleEditModeChange("per-token")
+																		}
+																		className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+																			editInputMode === "per-token"
+																				? "bg-cyan-500 text-white"
+																				: "bg-slate-700 text-slate-400 hover:text-white"
+																		}`}
+																	>
+																		Cost Per Token
 																	</button>
 																</div>
 
@@ -1048,17 +1094,6 @@ function CostBasisPage() {
 							<div className="flex gap-2 mb-6">
 								<button
 									type="button"
-									onClick={() => handleModeChange("per-token")}
-									className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-										inputMode === "per-token"
-											? "bg-cyan-500 text-white"
-											: "bg-slate-700 text-slate-400 hover:text-white"
-									}`}
-								>
-									Cost Per Token
-								</button>
-								<button
-									type="button"
 									onClick={() => handleModeChange("total")}
 									className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
 										inputMode === "total"
@@ -1067,6 +1102,17 @@ function CostBasisPage() {
 									}`}
 								>
 									Total Balance + Cost
+								</button>
+								<button
+									type="button"
+									onClick={() => handleModeChange("per-token")}
+									className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+										inputMode === "per-token"
+											? "bg-cyan-500 text-white"
+											: "bg-slate-700 text-slate-400 hover:text-white"
+									}`}
+								>
+									Cost Per Token
 								</button>
 							</div>
 
